@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(SokolApp VERSION 1.0.0)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 # Platform detection
@@ -49,69 +49,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sokol)
 
-# cimgui - use matching versions to avoid API mismatch
-FetchContent_Declare(
-    imgui
-    GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG v1.90.4
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(imgui)
-
-FetchContent_Declare(
-    cimgui
-    GIT_REPOSITORY https://github.com/cimgui/cimgui.git
-    GIT_TAG 1.90.4
-    GIT_SHALLOW TRUE
-    UPDATE_DISCONNECTED TRUE
-)
-
-FetchContent_GetProperties(cimgui)
-if(NOT cimgui_POPULATED)
-    FetchContent_Populate(cimgui)
-    
-    # Copy imgui files to the expected location for cimgui
-    file(MAKE_DIRECTORY ${cimgui_SOURCE_DIR}/imgui)
-    file(GLOB IMGUI_HEADERS ${imgui_SOURCE_DIR}/*.h)
-    file(GLOB IMGUI_SOURCES ${imgui_SOURCE_DIR}/*.cpp)
-    file(COPY ${IMGUI_HEADERS} ${IMGUI_SOURCES} DESTINATION ${cimgui_SOURCE_DIR}/imgui/)
-    
-    # Copy backends directory
-    if(EXISTS ${imgui_SOURCE_DIR}/backends)
-        file(COPY ${imgui_SOURCE_DIR}/backends DESTINATION ${cimgui_SOURCE_DIR}/imgui/)
-    endif()
-    
-    # Copy misc directory if it exists (some versions need it)
-    if(EXISTS ${imgui_SOURCE_DIR}/misc)
-        file(COPY ${imgui_SOURCE_DIR}/misc DESTINATION ${cimgui_SOURCE_DIR}/imgui/)
-    endif()
-    
-    # Create cimgui target
-    set(CIMGUI_SOURCES
-        ${cimgui_SOURCE_DIR}/cimgui.cpp
-        ${imgui_SOURCE_DIR}/imgui.cpp
-        ${imgui_SOURCE_DIR}/imgui_demo.cpp
-        ${imgui_SOURCE_DIR}/imgui_draw.cpp
-        ${imgui_SOURCE_DIR}/imgui_tables.cpp
-        ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-    )
-    
-    add_library(cimgui STATIC ${CIMGUI_SOURCES})
-    target_include_directories(cimgui PUBLIC 
-        ${cimgui_SOURCE_DIR}
-        ${imgui_SOURCE_DIR}
-        ${imgui_SOURCE_DIR}/backends
-    )
-    target_compile_definitions(cimgui PUBLIC 
-        IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1
-        IMGUI_DISABLE_OBSOLETE_KEYIO=1
-        IMGUI_DISABLE_WIN32_FUNCTIONS  # Avoid conflicts on Windows
-    )
-    
-    # Link with SDL3 to fix the missing header
-    target_link_libraries(cimgui PUBLIC SDL3::SDL3-static)
-endif()
-
 # Source files
 set(SOURCES
     src/main.c
@@ -136,14 +73,12 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     src
     src/backends
     ${sokol_SOURCE_DIR}
-    ${cimgui_SOURCE_DIR}
     ${glad_SOURCE_DIR}/include
 )
 
 # Link libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
     SDL3::SDL3
-    cimgui
 )
 
 # Platform-specific configurations
@@ -206,7 +141,7 @@ endif()
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
 else()
-    target_compile_options(${PROJECT_NAME} PRIVATE)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)
 endif()
 
 # Debug configuration
