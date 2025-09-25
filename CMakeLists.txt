@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
 project(SokolApp VERSION 1.0.0)
-
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
@@ -28,20 +27,12 @@ if(NOT SDL3_FOUND)
     )
     set(SDL_SHARED OFF CACHE BOOL "" FORCE)
     set(SDL_STATIC ON CACHE BOOL "" FORCE)
-    set(SDL_TEST OFF CACHE BOOL "" FORCE)  # Disable SDL tests
+    set(SDL_TEST OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(SDL3)
 endif()
 
-# GLAD
-include(FetchContent)
-FetchContent_Declare(
-    glad
-    GIT_REPOSITORY https://github.com/Dav1dde/glad.git
-    GIT_TAG glad2
-)
-FetchContent_MakeAvailable(glad)
-
 # Sokol
+include(FetchContent)
 FetchContent_Declare(
     sokol
     GIT_REPOSITORY https://github.com/floooh/sokol.git
@@ -59,9 +50,8 @@ set(SOURCES
 # Platform-specific sources
 if(PLATFORM_WINDOWS)
     list(APPEND SOURCES src/backends/d3d11_backend.c)
-elseif(PLATFORM_OSX)
-    list(APPEND SOURCES src/backends/metal_backend.c)
 else()
+    # Use OpenGL for both macOS and Linux/Unix
     list(APPEND SOURCES src/backends/opengl_backend.c)
 endif()
 
@@ -73,7 +63,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     src
     src/backends
     ${sokol_SOURCE_DIR}
-    ${glad_SOURCE_DIR}/include
 )
 
 # Link libraries
@@ -95,22 +84,19 @@ if(PLATFORM_WINDOWS)
         d3dcompiler
     )
 elseif(PLATFORM_OSX)
-    # macOS - Metal
+    # macOS - OpenGL (instead of Metal)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
-        SOKOL_METAL
-        CIMGUI_USE_METAL
+        SOKOL_GLCORE
+        CIMGUI_USE_OPENGL3
     )
-    find_library(METAL_LIBRARY Metal)
-    find_library(METALKIT_LIBRARY MetalKit)
-    find_library(COCOA_LIBRARY Cocoa)
-    find_library(QUARTZCORE_LIBRARY QuartzCore)
     
-    target_link_libraries(${PROJECT_NAME} PRIVATE
-        ${METAL_LIBRARY}
-        ${METALKIT_LIBRARY}
-        ${COCOA_LIBRARY}
-        ${QUARTZCORE_LIBRARY}
-    )
+    # Find OpenGL for macOS
+    find_package(OpenGL REQUIRED)
+    target_link_libraries(${PROJECT_NAME} PRIVATE OpenGL::GL)
+    
+    # macOS-specific frameworks for OpenGL
+    find_library(COCOA_LIBRARY Cocoa)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${COCOA_LIBRARY})
     
     set_target_properties(${PROJECT_NAME} PROPERTIES
         MACOSX_BUNDLE TRUE
@@ -124,7 +110,6 @@ else()
     )
     
     target_link_libraries(${PROJECT_NAME} PRIVATE
-        glad
         ${CMAKE_DL_LIBS}
     )
     
