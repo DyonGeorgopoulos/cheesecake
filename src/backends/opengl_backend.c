@@ -2,6 +2,7 @@
 
 #include "../renderer.h"
 #include "sokol_gfx.h"
+#include "sokol_log.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,33 +19,26 @@ bool opengl_backend_init(renderer_context_t* ctx) {
         fprintf(stderr, "Invalid context or window for OpenGL backend\n");
         return false;
     }
-
-    // Set OpenGL attributes before creating context
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-
-    // Allocate OpenGL context
+    
+    // In SDL3, attributes should already be set during window creation
+    // But let's verify they match what was set in window.c
+    
     opengl_context_t* gl_ctx = (opengl_context_t*)malloc(sizeof(opengl_context_t));
     if (!gl_ctx) {
         fprintf(stderr, "Failed to allocate OpenGL context\n");
         return false;
     }
     memset(gl_ctx, 0, sizeof(opengl_context_t));
-
-    // Create OpenGL context
+    
     gl_ctx->gl_context = SDL_GL_CreateContext(ctx->window);
     if (!gl_ctx->gl_context) {
         fprintf(stderr, "Failed to create OpenGL context: %s\n", SDL_GetError());
         free(gl_ctx);
         return false;
     }
-
-    // Make context current
-    if (SDL_GL_MakeCurrent(ctx->window, gl_ctx->gl_context) != 0) {
+    
+    // SDL3: SDL_GL_MakeCurrent returns bool (true = success)
+    if (!SDL_GL_MakeCurrent(ctx->window, gl_ctx->gl_context)) {
         fprintf(stderr, "Failed to make OpenGL context current: %s\n", SDL_GetError());
         SDL_GL_DestroyContext(gl_ctx->gl_context);
         free(gl_ctx);
@@ -54,8 +48,9 @@ bool opengl_backend_init(renderer_context_t* ctx) {
     ctx->native_context = gl_ctx;
 
     // Initialize Sokol GFX now that we have an OpenGL context
-    sg_desc desc = {0};
-    sg_setup(&desc);
+    sg_setup(&(sg_desc){
+        .logger.func = slog_func,
+    });
     
     if (!sg_isvalid()) {
         fprintf(stderr, "Failed to initialize Sokol GFX\n");
@@ -84,10 +79,6 @@ void opengl_backend_shutdown(renderer_context_t* ctx) {
 
     opengl_context_t* gl_ctx = (opengl_context_t*)ctx->native_context;
 
-    if (gl_ctx->initialized) {
-        sg_shutdown();
-    }
-
     // Destroy OpenGL context
     if (gl_ctx->gl_context) {
         SDL_GL_DestroyContext(gl_ctx->gl_context);
@@ -110,9 +101,6 @@ void opengl_backend_begin_frame(renderer_context_t* ctx) {
 
     // Make context current (in case it was lost)
     SDL_GL_MakeCurrent(ctx->window, gl_ctx->gl_context);
-
-    // Begin default pass with Sokol
-    sg_begin_pass(&(sg_pass){ .action = gl_ctx->pass_action });
 }
 
 void opengl_backend_end_frame(renderer_context_t* ctx) {
@@ -125,12 +113,6 @@ void opengl_backend_end_frame(renderer_context_t* ctx) {
     if (!gl_ctx->initialized) {
         return;
     }
-
-    // End the render pass
-    sg_end_pass();
-    
-    // Commit the frame
-    sg_commit();
 
     // Swap buffers
     SDL_GL_SwapWindow(ctx->window);
@@ -165,10 +147,30 @@ void opengl_backend_clear(renderer_context_t* ctx, float r, float g, float b, fl
 }
 
 sg_swapchain opengl_get_swapchain(renderer_context_t* ctx) {
-    (void)ctx; // Unused parameter
+    if (!ctx || !ctx->window) {
+        fprintf(stderr, "Invalid context in opengl_get_swapchain\n");
+        sg_swapchain empty = {0};
+        return empty;
+    }
     
-    // For OpenGL, return a default swapchain - Sokol will use the default framebuffer
+    // Get current window dimensions
+    int width, height;
+    SDL_GetWindowSize(ctx->window, &width, &height);
+    
+    // Handle minimized window case
+    if (width <= 0 || height <= 0) {
+        width = 1;  // Minimum valid size
+        height = 1;
+    }
+    
     sg_swapchain swapchain = {0};
+    swapchain.width = width;
+    swapchain.height = height;
+    swapchain.sample_count = 1;
+    swapchain.color_format = SG_PIXELFORMAT_RGBA8;
+    swapchain.depth_format = SG_PIXELFORMAT_DEPTH_STENCIL;
+    swapchain.gl.framebuffer = 0;  // Default framebuffer (0) for OpenGL
+    
     return swapchain;
 }
 
