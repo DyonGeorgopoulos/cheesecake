@@ -2,10 +2,18 @@
 #include "renderer.h"
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
+#include "font_rendering.h"
+
+#include "shader.glsl.h"
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 720
 #define WINDOW_TITLE "Sokol + SDL3 Demo"
+
+static sg_shader g_shader;
+sg_pipeline g_pipeline;
+sg_bindings g_bind;
 
 int main(int argc, char* argv[]) {
     (void)argc; // Suppress unused parameter warning
@@ -31,9 +39,47 @@ int main(int argc, char* argv[]) {
     printf("Application initialized successfully\n");
 
     // Application state
-    float clear_color[4] = {0.2f, 0.3f, 0.8f, 1.0f}; // Nice blue color
     int frame_count = 0;
 
+    // create the shader
+    // initialise the shader
+    g_shader = sg_make_shader(sgp_program_shader_desc(sg_query_backend()));
+    if (sg_query_shader_state(g_shader) != SG_RESOURCESTATE_VALID)
+    {
+        fprintf(stderr, "failed to make custom pipeline shader\n");
+        exit(-1);
+    }
+
+    g_pipeline = sg_make_pipeline(&(sg_pipeline_desc){
+        // if the vertex layout doesn't have gaps, don't need to provide strides and offsets
+        .layout = {
+            .attrs = {
+                [0].format = SG_VERTEXFORMAT_FLOAT3,
+                [1].format = SG_VERTEXFORMAT_FLOAT4
+            }
+        },
+        .shader = g_shader,
+    });
+
+    // a vertex buffer with the triangle vertices
+    const float vertices[] = {
+        // positions            colors
+         0.0f, 0.5f, 0.5f,      1.0f, 0.0f, 0.0f, 1.0f,
+         0.5f, -0.5f, 0.5f,     0.0f, 1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f,     0.0f, 0.0f, 1.0f, 1.0f
+    };
+    sg_buffer vbuf = sg_make_buffer(&(sg_buffer_desc){
+        .data = SG_RANGE(vertices)
+    });
+
+    // define resource bindings
+    g_bind = (sg_bindings){
+        .vertex_buffers[0] = vbuf
+    };
+
+    text_renderer_t renderer;
+    text_renderer_init(&renderer, 1000);
+    int font = text_renderer_load_font(&renderer, "../../../assets/Roboto-Black.ttf", 24);
     // Main loop
     while (!window_should_close(&window)) {
         // Poll events
@@ -46,14 +92,21 @@ int main(int argc, char* argv[]) {
             renderer_resize(&renderer_ctx, current_width, current_height);
         }
 
-        // Set clear color
-        renderer_clear(clear_color[0], clear_color[1], clear_color[2], clear_color[3]);
-
         // Begin frame
         renderer_begin_frame(&renderer_ctx);
 
-        // TODO: Add your rendering code here
-        // For now, just clear to the specified color
+        // update this for drawing all the entities
+        sg_apply_pipeline(g_pipeline);
+        sg_apply_bindings(&g_bind);
+        sg_draw(0, 3, 1);
+        
+        
+        // text / ui code should go here
+        sg_apply_pipeline(renderer.pipeline);
+        text_renderer_render(&renderer, current_width, current_height); 
+        // Draw text
+        text_renderer_draw_text(&renderer, font, "TEST FONT!", 0, 20, 1.0f, (float[4]){1.0f, 1.0f, 1.0f, 1.0f});
+
 
         // End frame and present
         renderer_end_frame(&renderer_ctx);

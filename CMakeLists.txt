@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(SokolApp VERSION 1.0.0)
-set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 # Platform detection
@@ -31,6 +31,30 @@ if(NOT SDL3_FOUND)
     FetchContent_MakeAvailable(SDL3)
 endif()
 
+# FreeType
+find_package(Freetype QUIET)
+if(NOT Freetype_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(
+        freetype
+        GIT_REPOSITORY https://github.com/freetype/freetype.git
+        GIT_TAG master
+        GIT_SHALLOW TRUE
+    )
+    
+    # FreeType build options
+    set(FT_DISABLE_ZLIB ON CACHE BOOL "Disable zlib support")
+    set(FT_DISABLE_BZIP2 ON CACHE BOOL "Disable bzip2 support")
+    set(FT_DISABLE_PNG ON CACHE BOOL "Disable PNG support")
+    set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "Disable HarfBuzz support")
+    set(FT_DISABLE_BROTLI ON CACHE BOOL "Disable Brotli support")
+    
+    FetchContent_MakeAvailable(freetype)
+    
+    # Create alias for consistency
+    add_library(Freetype::Freetype ALIAS freetype)
+endif()
+
 # Sokol
 include(FetchContent)
 FetchContent_Declare(
@@ -45,6 +69,7 @@ set(SOURCES
     src/main.c
     src/renderer.c
     src/window.c
+    src/font_rendering.c
 )
 
 # Platform-specific sources
@@ -68,6 +93,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 # Link libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
     SDL3::SDL3
+    Freetype::Freetype
 )
 
 # Platform-specific configurations
@@ -75,7 +101,6 @@ if(PLATFORM_WINDOWS)
     # Windows - D3D11
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         SOKOL_D3D11
-        CIMGUI_USE_D3D11
         WIN32_LEAN_AND_MEAN
     )
     target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -87,7 +112,6 @@ elseif(PLATFORM_OSX)
     # macOS - OpenGL (instead of Metal)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         SOKOL_GLCORE
-        CIMGUI_USE_OPENGL3
     )
     
     # Find OpenGL for macOS
@@ -106,7 +130,6 @@ else()
     # Unix/Linux - OpenGL
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         SOKOL_GLCORE
-        CIMGUI_USE_OPENGL3
     )
     
     target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -136,7 +159,16 @@ endif()
 
 # Create directories
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets)
+# Create directories and copy assets
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets/fonts)
 
+# Copy all fonts from source to build directory
+file(GLOB FONT_FILES "${CMAKE_SOURCE_DIR}/assets/fonts/*")
+foreach(FONT_FILE ${FONT_FILES})
+    file(COPY ${FONT_FILE} DESTINATION ${CMAKE_BINARY_DIR}/assets/fonts/)
+endforeach(
+
+)
 # Copy assets if they exist
 if(EXISTS ${CMAKE_SOURCE_DIR}/assets)
     file(COPY ${CMAKE_SOURCE_DIR}/assets/ DESTINATION ${CMAKE_BINARY_DIR}/assets/)

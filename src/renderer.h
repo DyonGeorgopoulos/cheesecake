@@ -25,7 +25,6 @@ void renderer_shutdown(renderer_context_t* ctx);
 void renderer_begin_frame(renderer_context_t* ctx);
 void renderer_end_frame(renderer_context_t* ctx);
 void renderer_resize(renderer_context_t* ctx, int width, int height);
-void renderer_clear(float r, float g, float b, float a);
 
 // Platform-specific backend functions (implemented in backend files)
 #ifdef SOKOL_D3D11

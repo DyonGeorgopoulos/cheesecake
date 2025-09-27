@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 typedef struct {
     SDL_GLContext gl_context;
     sg_pass_action pass_action;
