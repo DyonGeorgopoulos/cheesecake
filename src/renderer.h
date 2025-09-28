@@ -37,15 +37,6 @@ void d3d11_backend_resize(renderer_context_t* ctx, int width, int height);
 sg_swapchain d3d11_get_swapchain(renderer_context_t* ctx);
 #endif
 
-#ifdef SOKOL_METAL
-bool metal_backend_init(renderer_context_t* ctx);
-void metal_backend_shutdown(renderer_context_t* ctx);
-void metal_backend_begin_frame(renderer_context_t* ctx);
-void metal_backend_end_frame(renderer_context_t* ctx);
-void metal_backend_resize(renderer_context_t* ctx, int width, int height);
-sg_swapchain metal_get_swapchain(renderer_context_t* ctx);
-#endif
-
 #ifdef SOKOL_GLCORE
 bool opengl_backend_init(renderer_context_t* ctx);
 void opengl_backend_shutdown(renderer_context_t* ctx);

@@ -19,8 +19,6 @@ bool window_init(window_t* win, const char* title, int width, int height) {
     
 #ifdef SOKOL_D3D11
     // No special flags needed for D3D11
-#elif defined(SOKOL_METAL)
-    window_flags |= SDL_WINDOW_METAL;
 #elif defined(SOKOL_GLCORE)
     window_flags |= SDL_WINDOW_OPENGL;
     

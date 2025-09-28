@@ -3,6 +3,8 @@ project(SokolApp VERSION 1.0.0)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+option(USE_D3D11 "Use Direct3D11 backend on Windows" OFF)
+
 # Platform detection
 if(WIN32)
     set(PLATFORM_WINDOWS TRUE)
@@ -16,6 +18,10 @@ endif()
 find_package(PkgConfig REQUIRED)
 
 # SDL3
+set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+set(SDL_STATIC ON CACHE BOOL "" FORCE)
+set(SDL_TEST OFF CACHE BOOL "" FORCE)
+
 find_package(SDL3 QUIET)
 if(NOT SDL3_FOUND)
     include(FetchContent)
@@ -25,9 +31,7 @@ if(NOT SDL3_FOUND)
         GIT_TAG main
         GIT_SHALLOW TRUE
     )
-    set(SDL_SHARED OFF CACHE BOOL "" FORCE)
-    set(SDL_STATIC ON CACHE BOOL "" FORCE)
-    set(SDL_TEST OFF CACHE BOOL "" FORCE)
+
     FetchContent_MakeAvailable(SDL3)
 endif()
 
@@ -49,7 +53,11 @@ set(SOURCES
 
 # Platform-specific sources
 if(PLATFORM_WINDOWS)
-    list(APPEND SOURCES src/backends/d3d11_backend.c)
+    if(USE_D3D11)
+        list(APPEND SOURCES src/backends/d3d11_backend.c)
+    else()
+        list(APPEND SOURCES src/backends/opengl_backend.c)
+    endif()
 else()
     # Use OpenGL for both macOS and Linux/Unix
     list(APPEND SOURCES src/backends/opengl_backend.c)
@@ -73,16 +81,25 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 # Platform-specific configurations
 if(PLATFORM_WINDOWS)
     # Windows - D3D11
-    target_compile_definitions(${PROJECT_NAME} PRIVATE
-        SOKOL_D3D11
-        CIMGUI_USE_D3D11
-        WIN32_LEAN_AND_MEAN
-    )
-    target_link_libraries(${PROJECT_NAME} PRIVATE
-        d3d11
-        dxgi
-        d3dcompiler
-    )
+    if(USE_D3D11)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE
+            SOKOL_D3D11
+            CIMGUI_USE_D3D11
+            WIN32_LEAN_AND_MEAN
+        )
+        target_link_libraries(${PROJECT_NAME} PRIVATE
+            d3d11
+            dxgi
+            d3dcompiler
+        )
+    else()
+        target_compile_definitions(${PROJECT_NAME} PRIVATE
+            SOKOL_GLCORE
+            CIMGUI_USE_OPENGL3
+        )
+        find_package(OpenGL REQUIRED)
+        target_link_libraries(${PROJECT_NAME} PRIVATE OpenGL::GL)
+    endif()
 elseif(PLATFORM_OSX)
     # macOS - OpenGL (instead of Metal)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
