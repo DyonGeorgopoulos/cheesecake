@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "renderer.h": "c",
+        "chrono": "c",
+        "cimgui.h": "c",
+        "sokol_imgui.h": "c"
+    }
+}
