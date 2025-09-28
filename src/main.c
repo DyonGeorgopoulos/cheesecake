@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
 
     text_renderer_t renderer;
     text_renderer_init(&renderer, 1000);
-    int font = text_renderer_load_font(&renderer, "../../../assets/Roboto-Black.ttf", 24);
+    int font = text_renderer_load_font(&renderer, "E:\\gamedev\\cheesecake\\assets\\fonts\\Roboto-Black.ttf", 24);
     // Main loop
     while (!window_should_close(&window)) {
         // Poll events

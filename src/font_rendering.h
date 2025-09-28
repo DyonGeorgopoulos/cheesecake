@@ -4,6 +4,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include "sokol_gfx.h"
+#include "sokol_log.h"
 #include <stdbool.h>
 #include <stdint.h>
 

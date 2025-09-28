@@ -56,9 +56,11 @@ bool d3d11_backend_init(renderer_context_t* ctx) {
 
     // Initialize sokol_gfx with D3D11 context
     sg_desc sg_desc = {
-        .environment = d3d11_get_sokol_environment(d3d11_ctx)
+        .environment = d3d11_get_sokol_environment(d3d11_ctx),
+        .logger.func = slog_func,
         // Logger will be initialized by the main renderer
     };
+    
     sg_setup(&sg_desc);
 
     if (!sg_isvalid()) {

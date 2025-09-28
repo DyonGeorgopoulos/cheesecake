@@ -6,7 +6,7 @@
 #include <unistd.h> 
 #include <math.h>
 #include <dirent.h>  // for directory scanning
-
+#include "font.shader.glsl.h"
 
 
 bool check_file_exists(const char* filepath) {
@@ -202,115 +202,46 @@ bool text_renderer_init(text_renderer_t* renderer, int max_chars) {
         FT_Done_FreeType(renderer->ft_library);
         return false;
     }
-   
-    const char* vs_source = 
-    "#version 330\n"
-    "layout(location=0) in vec2 pos;\n"
-    "layout(location=1) in vec2 tex;\n"
-    "layout(location=2) in vec4 color;\n"
-    "uniform mat4 mvp;\n"
-    "out vec2 uv;\n"
-    "out vec4 vert_color;\n"
-    "void main() {\n"
-    "  gl_Position = mvp * vec4(pos, 0.0, 1.0);\n"
-    "  uv = tex;\n"
-    "  vert_color = color;\n"
-    "}\n";
-
-    const char* fs_source = 
-        "#version 330\n"
-        "in vec2 uv;\n"
-        "in vec4 vert_color;\n"
-        "uniform sampler2D u_texture;\n"
-        "out vec4 frag_color;\n"
-        "void main() {\n"
-        "  float alpha = texture(u_texture, uv).r;\n"
-        "  frag_color = vec4(vert_color.rgb, vert_color.a * alpha);\n"
-        "}\n";
 
     renderer->sampler = sg_make_sampler(&(sg_sampler_desc){
-    .min_filter = SG_FILTER_LINEAR,
-    .mag_filter = SG_FILTER_LINEAR,
-    .wrap_u = SG_WRAP_CLAMP_TO_EDGE,
-    .wrap_v = SG_WRAP_CLAMP_TO_EDGE,
-    .label = "text_sampler"
-});
-renderer->shader = sg_make_shader(&(sg_shader_desc){
-    .vertex_func = {
-        .source = vs_source,
-        .entry = "main"
-    },
-    .fragment_func = {
-        .source = fs_source,
-        .entry = "main"
-    },
-    .attrs[0] = { 
-        .base_type = SG_SHADERATTRBASETYPE_FLOAT,
-        .glsl_name = "pos"
-    },
-    .attrs[1] = { 
-        .base_type = SG_SHADERATTRBASETYPE_FLOAT,
-        .glsl_name = "tex"
-    },
-    .attrs[2] = { 
-        .base_type = SG_SHADERATTRBASETYPE_FLOAT,
-        .glsl_name = "color"
-    },
-    .uniform_blocks[0] = {
-        .stage = SG_SHADERSTAGE_VERTEX,
-        .layout = SG_UNIFORMLAYOUT_NATIVE,
-        .size = 64,
-        .glsl_uniforms[0] = { 
-            .type = SG_UNIFORMTYPE_MAT4, 
-            .array_count = 1,
-            .glsl_name = "mvp"
-        }
-    },
-    .views[0] = { 
-        .texture = {
-            .stage = SG_SHADERSTAGE_FRAGMENT,
-            .image_type = SG_IMAGETYPE_2D,
-            .sample_type = SG_IMAGESAMPLETYPE_FLOAT,
-            .multisampled = false
-        }
-    },
-    .samplers[0] = { 
-        .stage = SG_SHADERSTAGE_FRAGMENT,
-        .sampler_type = SG_SAMPLERTYPE_FILTERING
-    },
-    .texture_sampler_pairs[0] = { 
-        .stage = SG_SHADERSTAGE_FRAGMENT,
-        .view_slot = 0, 
-        .sampler_slot = 0,
-        .glsl_name = "u_texture"
-    },
-    .label = "text_shader"
-});
+        .min_filter = SG_FILTER_LINEAR,
+        .mag_filter = SG_FILTER_LINEAR,
+        .wrap_u = SG_WRAP_CLAMP_TO_EDGE,
+        .wrap_v = SG_WRAP_CLAMP_TO_EDGE,
+        .label = "text_sampler"
+    });
 
-// Create pipeline for text rendering with INDEX BUFFER support
-renderer->pipeline = sg_make_pipeline(&(sg_pipeline_desc){
-    .shader = renderer->shader,
-    .layout = {
-        .attrs = {
-            [0] = { .format = SG_VERTEXFORMAT_FLOAT2 },  // pos
-            [1] = { .format = SG_VERTEXFORMAT_FLOAT2 },  // tex
-            [2] = { .format = SG_VERTEXFORMAT_FLOAT4 }   // color
-        }
-    },
-    .index_type = SG_INDEXTYPE_UINT16,  // IMPORTANT: Enable index buffer
-    .colors[0] = {
-        .blend = {
-            .enabled = true,
-            .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-            .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-            .src_factor_alpha = SG_BLENDFACTOR_ONE,
-            .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
-        }
-    },
-    .depth = { .write_enabled = false },
-    .cull_mode = SG_CULLMODE_NONE,
-    .label = "text_pipeline"
-});
+    renderer->shader = sg_make_shader(font_program_shader_desc(sg_query_backend()));
+    if (sg_query_shader_state(renderer->shader) != SG_RESOURCESTATE_VALID)
+    {
+        fprintf(stderr, "failed to make custom pipeline shader\n");
+        exit(-1);
+    }
+
+    // Create pipeline for text rendering with INDEX BUFFER support
+    renderer->pipeline = sg_make_pipeline(&(sg_pipeline_desc){
+        .shader = renderer->shader,
+        .layout = {
+            .attrs = {
+                [0] = { .format = SG_VERTEXFORMAT_FLOAT2 },  // pos
+                [1] = { .format = SG_VERTEXFORMAT_FLOAT2 },  // tex
+                [2] = { .format = SG_VERTEXFORMAT_FLOAT4 }   // color
+            }
+        },
+        .index_type = SG_INDEXTYPE_UINT16,  // IMPORTANT: Enable index buffer
+        .colors[0] = {
+            .blend = {
+                .enabled = true,
+                .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
+                .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                .src_factor_alpha = SG_BLENDFACTOR_ONE,
+                .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
+            }
+        },
+        .depth = { .write_enabled = false },
+        .cull_mode = SG_CULLMODE_NONE,
+        .label = "text_pipeline"
+    });
 
     // Create buffers - LATEST API
     // Create buffers - CORRECTED FOR LATEST API
