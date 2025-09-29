@@ -1,5 +1,11 @@
 {
     "files.associations": {
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "font_rendering.h": "c",
+        "dirent.h": "c",
+        "window.h": "c",
+        "renderer.h": "c",
+        "*.inc": "c",
+        "common.h": "c"
     }
 }

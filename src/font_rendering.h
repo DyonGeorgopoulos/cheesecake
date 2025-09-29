@@ -4,6 +4,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include "sokol_gfx.h"
+#include "sokol_log.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -49,9 +50,12 @@ typedef struct {
     text_vertex_t* vertices;
     uint16_t* indices;
     int max_chars;
+    int vertex_count;  // ADD THIS
+    int index_count;   // ADD THIS
 } text_renderer_t;
 
 // Function declarations
+void text_renderer_begin(text_renderer_t* renderer);
 bool text_renderer_init(text_renderer_t* renderer, int max_chars);
 void text_renderer_shutdown(text_renderer_t* renderer);
 int text_renderer_load_font(text_renderer_t* renderer, const char* font_path, int size);

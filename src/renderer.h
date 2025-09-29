@@ -3,6 +3,7 @@
 
 #include <SDL3/SDL.h>
 #include <stdbool.h>
+#include "common.h"
 
 // Include sokol for types
 #include "sokol_gfx.h"

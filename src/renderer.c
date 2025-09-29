@@ -8,6 +8,9 @@
 #include "sokol_gfx.h"
 #include "sokol_log.h"
 
+// SDL3
+#include <SDL3/SDL.h>
+
 static renderer_context_t* g_renderer_ctx = NULL;
 static sg_pass_action g_pass_action;
 

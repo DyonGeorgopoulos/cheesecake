@@ -4,42 +4,78 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
+
 #include "font_rendering.h"
 
 #include "shader.glsl.h"
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 720
 #define WINDOW_TITLE "Sokol + SDL3 Demo"
+#define TARGET_FPS 240 
+#define TARGET_FRAME_TIME (1000 / TARGET_FPS)
 
 static sg_shader g_shader;
 sg_pipeline g_pipeline;
 sg_bindings g_bind;
+renderer_context_t renderer_ctx;
+text_renderer_t renderer;
 
-int main(int argc, char* argv[]) {
-    (void)argc; // Suppress unused parameter warning
+// FPS counter state
+typedef struct {
+    int frame_count;
+    Uint64 last_fps_update;
+    float current_fps;
+    char fps_text[32];
+} fps_counter_t;
+
+static fps_counter_t fps_counter = {0};
+
+void fps_counter_update(AppState* state) {
+    fps_counter.frame_count++;
+    
+    // Update FPS display every second (1000ms)
+    Uint64 elapsed = state->current_tick - fps_counter.last_fps_update;
+    if (elapsed >= 1000) {
+        fps_counter.current_fps = (float)fps_counter.frame_count / (elapsed / 1000.0f);
+        snprintf(fps_counter.fps_text, sizeof(fps_counter.fps_text), 
+                 "FPS: %.1f", fps_counter.current_fps);
+        
+        fps_counter.frame_count = 0;
+        fps_counter.last_fps_update = state->current_tick;
+    }
+}
+
+void app_wait_for_next_frame(void *appstate) {
+    AppState* state = (AppState*) appstate;
+
+    Uint64 frame_time = SDL_GetTicks() - state->current_tick;
+    if (frame_time < TARGET_FRAME_TIME) SDL_Delay(TARGET_FRAME_TIME - frame_time);
+}
+
+SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
+    (void)argc;
     (void)argv;
+    AppState* state = SDL_malloc(sizeof(AppState));
+    *appstate = state;
 
     printf("Starting %s...\n", WINDOW_TITLE);
 
     // Initialize window
-    window_t window = {0};
-    if (!window_init(&window, WINDOW_TITLE, WINDOW_WIDTH, WINDOW_HEIGHT)) {
+    if (!window_init(state, WINDOW_TITLE, WINDOW_WIDTH, WINDOW_HEIGHT)) {
         fprintf(stderr, "Failed to initialize window\n");
         return -1;
     }
 
     // Initialize renderer
-    renderer_context_t renderer_ctx = {0};
-    if (!renderer_init(&renderer_ctx, window_get_handle(&window), WINDOW_WIDTH, WINDOW_HEIGHT)) {
-        fprintf(stderr, "Failed to initialize renderer\n");
-        window_shutdown(&window);
+    if (!renderer_init(&renderer_ctx, window_get_handle(&state->window), WINDOW_WIDTH, WINDOW_HEIGHT)) {
+        fprintf(stderr, "Failed to  initialize renderer\n");
+        window_shutdown(&state->window);
         return -1;
     }
 
     printf("Application initialized successfully\n");
-
-    // Application state
-    int frame_count = 0;
 
     // create the shader
     // initialise the shader
@@ -77,54 +113,103 @@ int main(int argc, char* argv[]) {
         .vertex_buffers[0] = vbuf
     };
 
-    text_renderer_t renderer;
     text_renderer_init(&renderer, 1000);
-    int font = text_renderer_load_font(&renderer, "../../../assets/Roboto-Black.ttf", 24);
-    // Main loop
-    while (!window_should_close(&window)) {
-        // Poll events
-        window_poll_events(&window);
+    state->font = text_renderer_load_font(&renderer, "assets/fonts/Roboto-Black.ttf", 16);
 
-        // Handle window resize
-        int current_width, current_height;
-        window_get_size(&window, &current_width, &current_height);
-        if (current_width != renderer_ctx.width || current_height != renderer_ctx.height) {
-            renderer_resize(&renderer_ctx, current_width, current_height);
-        }
+    // Initialize FPS counter
+    fps_counter.last_fps_update = SDL_GetTicks();
+    snprintf(fps_counter.fps_text, sizeof(fps_counter.fps_text), "FPS: 0.0");
 
-        // Begin frame
-        renderer_begin_frame(&renderer_ctx);
-
-        // update this for drawing all the entities
-        sg_apply_pipeline(g_pipeline);
-        sg_apply_bindings(&g_bind);
-        sg_draw(0, 3, 1);
-        
-        
-        // text / ui code should go here
-        sg_apply_pipeline(renderer.pipeline);
-        text_renderer_render(&renderer, current_width, current_height); 
-        // Draw text
-        text_renderer_draw_text(&renderer, font, "TEST FONT!", 0, 20, 1.0f, (float[4]){1.0f, 1.0f, 1.0f, 1.0f});
+    return 0;
+}
 
 
-        // End frame and present
-        renderer_end_frame(&renderer_ctx);
-        window_present(&window);
+SDL_AppResult SDL_AppIterate(void *appstate) {
+    // Poll events
+    AppState* state = (AppState*) appstate;
+    state->last_tick = state->current_tick;
+    state->current_tick = SDL_GetTicks();
+    state->delta_time = (state->current_tick - state->last_tick) / 1000.0f;
 
-        frame_count++;
+    // Update FPS counter
+    fps_counter_update(state);
 
-        // Print frame info every 60 frames
-        if (frame_count % 60 == 0) {
-            printf("Frame %d - Window: %dx%d\n", frame_count, current_width, current_height);
-        }
+    // Handle window resize
+    int current_width, current_height;
+    SDL_GetWindowSizeInPixels(state->window, &current_width, &current_height);
+    if (current_width != renderer_ctx.width || current_height != renderer_ctx.height) {
+        renderer_resize(&renderer_ctx, current_width, current_height);
     }
 
+    // Begin frame
+    renderer_begin_frame(&renderer_ctx);
+
+    // update this for drawing all the entities
+    sg_apply_pipeline(g_pipeline);
+    sg_apply_bindings(&g_bind);
+    sg_draw(0, 3, 1);
+    
+    
+    // text / ui code should go here
+    sg_apply_pipeline(renderer.pipeline);
+
+    text_renderer_begin(&renderer);
+    
+    // Draw FPS counter in top-left corner
+    text_renderer_draw_text(&renderer, state->font, fps_counter.fps_text, 
+                           0, 20, 1.0f, (float[4]){0.0f, 1.0f, 0.0f, 1.0f});
+    
+    text_renderer_draw_text(&renderer, state->font, "GAME", 
+    current_width / 2, 20, 1.0f, (float[4]){0.0f, 1.0f, 0.0f, 1.0f});
+
+    text_renderer_render(&renderer, current_width, current_height); 
+
+    // End frame and present
+    renderer_end_frame(&renderer_ctx);
+    window_present(&state->window);
+    app_wait_for_next_frame(appstate);
+    return SDL_APP_CONTINUE;
+}
+
+SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
+    AppState* state = (AppState*) appstate;
+
+    switch (event->type) {
+        case SDL_EVENT_QUIT:
+            return SDL_APP_SUCCESS;
+            break;
+            
+        case SDL_EVENT_WINDOW_RESIZED:
+            if (event->window.windowID == SDL_GetWindowID(state->window)) {
+                state->width = event->window.data1;
+                state->height = event->window.data2;
+            }
+            break;
+            
+        case SDL_EVENT_KEY_DOWN:
+            if (event->key.key == SDLK_ESCAPE) {
+                return SDL_APP_SUCCESS;
+            }
+            break;
+            
+        default:
+            break;
+    }
+        
+        // Pass events to ImGui if needed
+        // simgui_handle_event(&event);
+    return SDL_APP_CONTINUE;
+}
+
+// This function runs once at shutdown
+void SDL_AppQuit(void *appstate, SDL_AppResult result)
+{
+    AppState* state = (AppState*) appstate;
     // Cleanup
     printf("Shutting down application...\n");
     renderer_shutdown(&renderer_ctx);
-    window_shutdown(&window);
+    window_shutdown(&state->window);
 
     printf("Application shut down successfully\n");
-    return 0;
+    // SDL will clean up the window/renderer for us.
 }

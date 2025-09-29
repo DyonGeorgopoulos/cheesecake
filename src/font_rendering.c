@@ -6,7 +6,7 @@
 #include <unistd.h> 
 #include <math.h>
 #include <dirent.h>  // for directory scanning
-
+#include "font.shader.glsl.h"
 
 
 bool check_file_exists(const char* filepath) {
@@ -14,7 +14,6 @@ bool check_file_exists(const char* filepath) {
         return false;
     }
     
-    // Check if file exists and is readable
     if (access(filepath, R_OK) != 0) {
         printf("Font file '%s' is not accessible: %s\n", filepath, strerror(errno));
         return false;
@@ -23,7 +22,6 @@ bool check_file_exists(const char* filepath) {
     return true;
 }
 
-// Function to list directory contents
 void list_directory(const char* path) {
     printf("Contents of '%s':\n", path);
     DIR* dir = opendir(path);
@@ -34,7 +32,7 @@ void list_directory(const char* path) {
     
     struct dirent* entry;
     while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_name[0] != '.') {  // Skip hidden files
+        if (entry->d_name[0] != '.') {
             printf("  %s\n", entry->d_name);
         }
     }
@@ -42,11 +40,9 @@ void list_directory(const char* path) {
     printf("\n");
 }
 
-// Add this to your main function for debugging
 void debug_font_paths() {
     printf("=== DEBUGGING FONT PATHS ===\n");
     
-    // Check if the assets directory exists in various locations
     const char* asset_dirs[] = {
         "/Users/janelle/repos/cheesecake/assets",
         "/Users/janelle/repos/cheesecake/build/assets", 
@@ -62,7 +58,6 @@ void debug_font_paths() {
         list_directory(asset_dirs[i]);
     }
     
-    // Check specific font file locations
     const char* font_paths[] = {
         "/Users/janelle/repos/cheesecake/assets/Roboto-Black.ttf",
         "/Users/janelle/repos/cheesecake/assets/fonts/Roboto-Black.ttf",
@@ -80,9 +75,7 @@ void debug_font_paths() {
     printf("=== END DEBUG ===\n\n");
 }
 
-// Generate font atlas
 static bool generate_font_atlas(font_t* font) {
-    // Calculate atlas size (simple approach)
     font->atlas_width = 512;
     font->atlas_height = 512;
     
@@ -91,10 +84,9 @@ static bool generate_font_atlas(font_t* font) {
         return false;
     }
     
-    int x = 1, y = 1;  // Start with 1px border
+    int x = 1, y = 1;
     int row_height = 0;
     
-    // Render each ASCII character
     for (int c = 32; c < 127; c++) {
         FT_Error error = FT_Load_Char(font->face, c, FT_LOAD_RENDER);
         if (error) {
@@ -105,7 +97,6 @@ static bool generate_font_atlas(font_t* font) {
         FT_GlyphSlot glyph = font->face->glyph;
         FT_Bitmap* bitmap = &glyph->bitmap;
         
-        // Check if we need to move to next row
         if (x + bitmap->width + 1 >= font->atlas_width) {
             x = 1;
             y += row_height + 1;
@@ -117,7 +108,6 @@ static bool generate_font_atlas(font_t* font) {
             }
         }
         
-        // Copy glyph bitmap to atlas
         for (unsigned int row = 0; row < bitmap->rows; row++) {
             for (unsigned int col = 0; col < bitmap->width; col++) {
                 int atlas_idx = (y + row) * font->atlas_width + (x + col);
@@ -126,7 +116,6 @@ static bool generate_font_atlas(font_t* font) {
             }
         }
         
-        // Store glyph info
         glyph_info_t* glyph_info = &font->glyphs[c];
         glyph_info->tex_x = (float)x / font->atlas_width;
         glyph_info->tex_y = (float)y / font->atlas_height;
@@ -157,13 +146,11 @@ static bool generate_font_atlas(font_t* font) {
         .label = "font_atlas"
     });
 
-    // Create a view for the texture
-    // Create a view for the texture
     font->atlas_view = sg_make_view(&(sg_view_desc){
         .texture = {
             .image = font->atlas_texture,
-            .mip_levels = { .base = 0, .count = 1 },  // Use only the base mip level
-            .slices = { .base = 0, .count = 1 }       // Single 2D texture slice
+            .mip_levels = { .base = 0, .count = 1 },
+            .slices = { .base = 0, .count = 1 }
         },
         .label = "font_atlas_view"
     });
@@ -172,19 +159,16 @@ static bool generate_font_atlas(font_t* font) {
     return sg_query_image_state(font->atlas_texture) == SG_RESOURCESTATE_VALID;
 }
 
-// Initialize text renderer
 bool text_renderer_init(text_renderer_t* renderer, int max_chars) {
     memset(renderer, 0, sizeof(text_renderer_t));
     renderer->max_chars = max_chars;
     
-    // Initialize FreeType
     FT_Error error = FT_Init_FreeType(&renderer->ft_library);
     if (error) {
         printf("Failed to initialize FreeType: %d\n", error);
         return false;
     }
     
-    // Allocate font array
     renderer->font_capacity = 16;
     renderer->fonts = malloc(renderer->font_capacity * sizeof(font_t));
     if (!renderer->fonts) {
@@ -192,7 +176,6 @@ bool text_renderer_init(text_renderer_t* renderer, int max_chars) {
         return false;
     }
     
-    // Allocate vertex and index arrays
     renderer->vertices = malloc(max_chars * 4 * sizeof(text_vertex_t));
     renderer->indices = malloc(max_chars * 6 * sizeof(uint16_t));
     if (!renderer->vertices || !renderer->indices) {
@@ -202,118 +185,46 @@ bool text_renderer_init(text_renderer_t* renderer, int max_chars) {
         FT_Done_FreeType(renderer->ft_library);
         return false;
     }
-   
-    const char* vs_source = 
-    "#version 330\n"
-    "layout(location=0) in vec2 pos;\n"
-    "layout(location=1) in vec2 tex;\n"
-    "layout(location=2) in vec4 color;\n"
-    "uniform mat4 mvp;\n"
-    "out vec2 uv;\n"
-    "out vec4 vert_color;\n"
-    "void main() {\n"
-    "  gl_Position = mvp * vec4(pos, 0.0, 1.0);\n"
-    "  uv = tex;\n"
-    "  vert_color = color;\n"
-    "}\n";
-
-    const char* fs_source = 
-        "#version 330\n"
-        "in vec2 uv;\n"
-        "in vec4 vert_color;\n"
-        "uniform sampler2D u_texture;\n"
-        "out vec4 frag_color;\n"
-        "void main() {\n"
-        "  float alpha = texture(u_texture, uv).r;\n"
-        "  frag_color = vec4(vert_color.rgb, vert_color.a * alpha);\n"
-        "}\n";
 
     renderer->sampler = sg_make_sampler(&(sg_sampler_desc){
-    .min_filter = SG_FILTER_LINEAR,
-    .mag_filter = SG_FILTER_LINEAR,
-    .wrap_u = SG_WRAP_CLAMP_TO_EDGE,
-    .wrap_v = SG_WRAP_CLAMP_TO_EDGE,
-    .label = "text_sampler"
-});
-renderer->shader = sg_make_shader(&(sg_shader_desc){
-    .vertex_func = {
-        .source = vs_source,
-        .entry = "main"
-    },
-    .fragment_func = {
-        .source = fs_source,
-        .entry = "main"
-    },
-    .attrs[0] = { 
-        .base_type = SG_SHADERATTRBASETYPE_FLOAT,
-        .glsl_name = "pos"
-    },
-    .attrs[1] = { 
-        .base_type = SG_SHADERATTRBASETYPE_FLOAT,
-        .glsl_name = "tex"
-    },
-    .attrs[2] = { 
-        .base_type = SG_SHADERATTRBASETYPE_FLOAT,
-        .glsl_name = "color"
-    },
-    .uniform_blocks[0] = {
-        .stage = SG_SHADERSTAGE_VERTEX,
-        .layout = SG_UNIFORMLAYOUT_NATIVE,
-        .size = 64,
-        .glsl_uniforms[0] = { 
-            .type = SG_UNIFORMTYPE_MAT4, 
-            .array_count = 1,
-            .glsl_name = "mvp"
-        }
-    },
-    .views[0] = { 
-        .texture = {
-            .stage = SG_SHADERSTAGE_FRAGMENT,
-            .image_type = SG_IMAGETYPE_2D,
-            .sample_type = SG_IMAGESAMPLETYPE_FLOAT,
-            .multisampled = false
-        }
-    },
-    .samplers[0] = { 
-        .stage = SG_SHADERSTAGE_FRAGMENT,
-        .sampler_type = SG_SAMPLERTYPE_FILTERING
-    },
-    .texture_sampler_pairs[0] = { 
-        .stage = SG_SHADERSTAGE_FRAGMENT,
-        .view_slot = 0, 
-        .sampler_slot = 0,
-        .glsl_name = "u_texture"
-    },
-    .label = "text_shader"
-});
+        .min_filter = SG_FILTER_LINEAR,
+        .mag_filter = SG_FILTER_LINEAR,
+        .wrap_u = SG_WRAP_CLAMP_TO_EDGE,
+        .wrap_v = SG_WRAP_CLAMP_TO_EDGE,
+        .label = "text_sampler"
+    });
 
-// Create pipeline for text rendering with INDEX BUFFER support
-renderer->pipeline = sg_make_pipeline(&(sg_pipeline_desc){
-    .shader = renderer->shader,
-    .layout = {
-        .attrs = {
-            [0] = { .format = SG_VERTEXFORMAT_FLOAT2 },  // pos
-            [1] = { .format = SG_VERTEXFORMAT_FLOAT2 },  // tex
-            [2] = { .format = SG_VERTEXFORMAT_FLOAT4 }   // color
-        }
-    },
-    .index_type = SG_INDEXTYPE_UINT16,  // IMPORTANT: Enable index buffer
-    .colors[0] = {
-        .blend = {
-            .enabled = true,
-            .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-            .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-            .src_factor_alpha = SG_BLENDFACTOR_ONE,
-            .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
-        }
-    },
-    .depth = { .write_enabled = false },
-    .cull_mode = SG_CULLMODE_NONE,
-    .label = "text_pipeline"
-});
+    renderer->shader = sg_make_shader(font_program_shader_desc(sg_query_backend()));
+    if (sg_query_shader_state(renderer->shader) != SG_RESOURCESTATE_VALID)
+    {
+        fprintf(stderr, "failed to make custom pipeline shader\n");
+        exit(-1);
+    }
 
-    // Create buffers - LATEST API
-    // Create buffers - CORRECTED FOR LATEST API
+    renderer->pipeline = sg_make_pipeline(&(sg_pipeline_desc){
+        .shader = renderer->shader,
+        .layout = {
+            .attrs = {
+                [0] = { .format = SG_VERTEXFORMAT_FLOAT2 },
+                [1] = { .format = SG_VERTEXFORMAT_FLOAT2 },
+                [2] = { .format = SG_VERTEXFORMAT_FLOAT4 }
+            }
+        },
+        .index_type = SG_INDEXTYPE_UINT16,
+        .colors[0] = {
+            .blend = {
+                .enabled = true,
+                .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
+                .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                .src_factor_alpha = SG_BLENDFACTOR_ONE,
+                .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
+            }
+        },
+        .depth = { .write_enabled = false },
+        .cull_mode = SG_CULLMODE_NONE,
+        .label = "text_pipeline"
+    });
+
     renderer->vertex_buffer = sg_make_buffer(&(sg_buffer_desc){
         .size = max_chars * 4 * sizeof(text_vertex_t),
         .usage.dynamic_update = true,
@@ -330,10 +241,8 @@ renderer->pipeline = sg_make_pipeline(&(sg_pipeline_desc){
     return true;
 }
 
-// Load font
 int text_renderer_load_font(text_renderer_t* renderer, const char* font_path, int size) {
     if (renderer->font_count >= renderer->font_capacity) {
-        // Resize array
         renderer->font_capacity *= 2;
         renderer->fonts = realloc(renderer->fonts, 
                                  renderer->font_capacity * sizeof(font_t));
@@ -342,12 +251,11 @@ int text_renderer_load_font(text_renderer_t* renderer, const char* font_path, in
     font_t* font = &renderer->fonts[renderer->font_count];
     memset(font, 0, sizeof(font_t));
     
-    // Load font face
     char cwd[1024];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
         printf("Current working directory: %s\n", cwd);
     }
-    debug_font_paths();  // Call the debug function to list directories and check files
+    debug_font_paths();
 
     FT_Error error = FT_New_Face(renderer->ft_library, font_path, 0, &font->face);
     if (error) {
@@ -355,7 +263,6 @@ int text_renderer_load_font(text_renderer_t* renderer, const char* font_path, in
         return -1;
     }
     
-    // Set pixel size
     error = FT_Set_Pixel_Sizes(font->face, 0, size);
     if (error) {
         printf("Failed to set font size: %d\n", error);
@@ -363,13 +270,11 @@ int text_renderer_load_font(text_renderer_t* renderer, const char* font_path, in
         return -1;
     }
     
-    // Store font metrics
     font->font_size = size;
     font->line_height = font->face->size->metrics.height >> 6;
     font->ascender = font->face->size->metrics.ascender >> 6;
     font->descender = font->face->size->metrics.descender >> 6;
     
-    // Generate atlas
     if (!generate_font_atlas(font)) {
         printf("Failed to generate font atlas\n");
         FT_Done_Face(font->face);
@@ -382,7 +287,13 @@ int text_renderer_load_font(text_renderer_t* renderer, const char* font_path, in
     return renderer->font_count++;
 }
 
-// Draw text (adds to vertex buffer)
+// NEW: Begin collecting text draws for the frame
+void text_renderer_begin(text_renderer_t* renderer) {
+    renderer->vertex_count = 0;
+    renderer->index_count = 0;
+}
+
+// MODIFIED: Just add to buffers, don't draw yet
 void text_renderer_draw_text(text_renderer_t* renderer, int font_id, const char* text, 
                             float x, float y, float scale, float color[4]) {
     if (font_id < 0 || font_id >= renderer->font_count) {
@@ -393,9 +304,6 @@ void text_renderer_draw_text(text_renderer_t* renderer, int font_id, const char*
     float cursor_x = x;
     float cursor_y = y;
     
-    int vertex_count = 0;
-    int index_count = 0;
-    
     for (const char* p = text; *p; p++) {
         char c = *p;
         
@@ -405,86 +313,53 @@ void text_renderer_draw_text(text_renderer_t* renderer, int font_id, const char*
             continue;
         }
         
-        if (c < 32 || c >= 127) continue;  // Skip non-printable
+        if (c < 32 || c >= 127) continue;
         
-        if (vertex_count + 4 > renderer->max_chars * 4) break;  // Buffer full
+        if (renderer->vertex_count + 4 > renderer->max_chars * 4) break;
         
         glyph_info_t* glyph = &font->glyphs[c];
         
         if (glyph->width == 0 || glyph->height == 0) {
             cursor_x += glyph->advance_x * scale;
-            continue;  // Skip whitespace
+            continue;
         }
         
-        // Calculate quad positions
         float x0 = cursor_x + glyph->offset_x * scale;
         float y0 = cursor_y - glyph->offset_y * scale;
         float x1 = x0 + glyph->width * scale;
         float y1 = y0 + glyph->height * scale;
         
-        // Create quad vertices
-        text_vertex_t* verts = &renderer->vertices[vertex_count];
+        text_vertex_t* verts = &renderer->vertices[renderer->vertex_count];
         
-        // Top-left
         verts[0].pos[0] = x0; verts[0].pos[1] = y0;
         verts[0].tex[0] = glyph->tex_x; verts[0].tex[1] = glyph->tex_y;
         memcpy(verts[0].color, color, 4 * sizeof(float));
         
-        // Top-right
         verts[1].pos[0] = x1; verts[1].pos[1] = y0;
         verts[1].tex[0] = glyph->tex_x + glyph->tex_w; verts[1].tex[1] = glyph->tex_y;
         memcpy(verts[1].color, color, 4 * sizeof(float));
         
-        // Bottom-right
         verts[2].pos[0] = x1; verts[2].pos[1] = y1;
         verts[2].tex[0] = glyph->tex_x + glyph->tex_w; verts[2].tex[1] = glyph->tex_y + glyph->tex_h;
         memcpy(verts[2].color, color, 4 * sizeof(float));
         
-        // Bottom-left
         verts[3].pos[0] = x0; verts[3].pos[1] = y1;
         verts[3].tex[0] = glyph->tex_x; verts[3].tex[1] = glyph->tex_y + glyph->tex_h;
         memcpy(verts[3].color, color, 4 * sizeof(float));
         
-        // Create quad indices (two triangles)
-        uint16_t base = vertex_count;
-        renderer->indices[index_count++] = base + 0;
-        renderer->indices[index_count++] = base + 1;
-        renderer->indices[index_count++] = base + 2;
-        renderer->indices[index_count++] = base + 0;
-        renderer->indices[index_count++] = base + 2;
-        renderer->indices[index_count++] = base + 3;
+        uint16_t base = renderer->vertex_count;
+        renderer->indices[renderer->index_count++] = base + 0;
+        renderer->indices[renderer->index_count++] = base + 1;
+        renderer->indices[renderer->index_count++] = base + 2;
+        renderer->indices[renderer->index_count++] = base + 0;
+        renderer->indices[renderer->index_count++] = base + 2;
+        renderer->indices[renderer->index_count++] = base + 3;
         
-        vertex_count += 4;
+        renderer->vertex_count += 4;
         cursor_x += glyph->advance_x * scale;
-    }
-    
-    if (vertex_count > 0) {
-        // Update buffers
-        sg_update_buffer(renderer->vertex_buffer, &(sg_range){
-            .ptr = renderer->vertices,
-            .size = vertex_count * sizeof(text_vertex_t)
-        });
-        
-        sg_update_buffer(renderer->index_buffer, &(sg_range){
-            .ptr = renderer->indices,
-            .size = index_count * sizeof(uint16_t)
-        });
-        
-    // Draw
-
-    sg_bindings bindings = {
-    .vertex_buffers[0] = renderer->vertex_buffer,
-    .index_buffer = renderer->index_buffer,
-    .views[0] = font->atlas_view,
-    .samplers[0] = renderer->sampler
-    };
-        
-        sg_apply_bindings(&bindings);
-        sg_draw(0, index_count, 1);
     }
 }
 
-// Helper function to create orthographic projection matrix
 static void create_ortho_matrix(float* matrix, float left, float right, float bottom, float top) {
     memset(matrix, 0, 16 * sizeof(float));
     matrix[0] = 2.0f / (right - left);
@@ -495,17 +370,44 @@ static void create_ortho_matrix(float* matrix, float left, float right, float bo
     matrix[15] = 1.0f;
 }
 
-// Render all text (call this after adding all text for the frame)
+// MODIFIED: Now actually renders everything at once
 void text_renderer_render(text_renderer_t* renderer, int width, int height) {
-    // Create orthographic projection matrix
+    if (renderer->vertex_count == 0) {
+        return;  // Nothing to draw
+    }
+    
+    // Update buffers ONCE per frame
+    sg_update_buffer(renderer->vertex_buffer, &(sg_range){
+        .ptr = renderer->vertices,
+        .size = renderer->vertex_count * sizeof(text_vertex_t)
+    });
+    
+    sg_update_buffer(renderer->index_buffer, &(sg_range){
+        .ptr = renderer->indices,
+        .size = renderer->index_count * sizeof(uint16_t)
+    });
+    
+    // Create orthographic projection
     float mvp[16];
-    create_ortho_matrix(mvp, 0, width, height, 0);  // Top-left origin
+    create_ortho_matrix(mvp, 0, width, height, 0);
     
     sg_apply_pipeline(renderer->pipeline);
     sg_apply_uniforms(0, &(sg_range){mvp, 64});
+    
+    // Use the first font's atlas (you might want to make this more flexible)
+    if (renderer->font_count > 0) {
+        sg_bindings bindings = {
+            .vertex_buffers[0] = renderer->vertex_buffer,
+            .index_buffer = renderer->index_buffer,
+            .views[0] = renderer->fonts[0].atlas_view,
+            .samplers[0] = renderer->sampler
+        };
+        
+        sg_apply_bindings(&bindings);
+        sg_draw(0, renderer->index_count, 1);
+    }
 }
 
-// Get text dimensions
 void text_renderer_get_text_size(text_renderer_t* renderer, int font_id, const char* text, 
                                  float scale, float* width, float* height) {
     *width = 0;
@@ -539,23 +441,18 @@ void text_renderer_get_text_size(text_renderer_t* renderer, int font_id, const c
     *height = font->line_height * scale * line_count;
 }
 
-// Shutdown
 void text_renderer_shutdown(text_renderer_t* renderer) {
-    // Clean up fonts
     for (int i = 0; i < renderer->font_count; i++) {
         FT_Done_Face(renderer->fonts[i].face);
         sg_destroy_image(renderer->fonts[i].atlas_texture);
     }
     free(renderer->fonts);
     
-    // Clean up FreeType
     FT_Done_FreeType(renderer->ft_library);
     
-    // Clean up Sokol resources
     sg_destroy_buffer(renderer->vertex_buffer);
     sg_destroy_buffer(renderer->index_buffer);
     
-    // Clean up arrays
     free(renderer->vertices);
     free(renderer->indices);
     
