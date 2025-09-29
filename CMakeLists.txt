@@ -102,16 +102,23 @@ if(PLATFORM_WINDOWS)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         SOKOL_D3D11
         WIN32_LEAN_AND_MEAN
+        SDL_MAIN_USE_CALLBACKS
     )
     target_link_libraries(${PROJECT_NAME} PRIVATE
         d3d11
         dxgi
         d3dcompiler
     )
+    
+    # Set working directory for Visual Studio
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
 elseif(PLATFORM_OSX)
     # macOS - OpenGL (instead of Metal)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         SOKOL_GLCORE
+        SDL_MAIN_USE_CALLBACKS
     )
     
     # Find OpenGL for macOS
@@ -130,6 +137,7 @@ else()
     # Unix/Linux - OpenGL
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         SOKOL_GLCORE
+        SDL_MAIN_USE_CALLBACKS
     )
     
     target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -149,7 +157,7 @@ endif()
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
 else()
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)
+    target_compile_options(${PROJECT_NAME} PRIVATE)
 endif()
 
 # Debug configuration
@@ -157,19 +165,10 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(${PROJECT_NAME} PRIVATE DEBUG=1)
 endif()
 
-# Create directories
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets)
-# Create directories and copy assets
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets/fonts)
-
-# Copy all fonts from source to build directory
-file(GLOB FONT_FILES "${CMAKE_SOURCE_DIR}/assets/fonts/*")
-foreach(FONT_FILE ${FONT_FILES})
-    file(COPY ${FONT_FILE} DESTINATION ${CMAKE_BINARY_DIR}/assets/fonts/)
-endforeach(
-
+# Copy assets to build directory (runs at build time, not configure time)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/assets
+        ${CMAKE_BINARY_DIR}/assets
+    COMMENT "Copying assets to build directory"
 )
-# Copy assets if they exist
-if(EXISTS ${CMAKE_SOURCE_DIR}/assets)
-    file(COPY ${CMAKE_SOURCE_DIR}/assets/ DESTINATION ${CMAKE_BINARY_DIR}/assets/)
-endif()
