@@ -2,6 +2,7 @@
 
 #include "../renderer.h"
 #include "sokol_gfx.h"
+#include "sokol_gp.h"
 #include "sokol_log.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
@@ -60,6 +61,14 @@ bool opengl_backend_init(renderer_context_t* ctx) {
         return false;
     }
 
+    sgp_desc sgpdesc = {0};
+    sgp_setup(&sgpdesc);
+    if (!sgp_is_valid())
+    {
+        fprintf(stderr, "Failed to create Sokol GP context: %s\n", sgp_get_error_message(sgp_get_last_error()));
+        exit(-1);
+    }
+    
     // Setup pass action for clearing
     gl_ctx->pass_action = (sg_pass_action) {
         .colors[0] = { 

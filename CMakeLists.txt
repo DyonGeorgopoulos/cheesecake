@@ -3,6 +3,13 @@ project(SokolApp VERSION 1.0.0)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+# Force output directories to be consistent across platforms
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR})
+
 # Platform detection
 if(WIN32)
     set(PLATFORM_WINDOWS TRUE)
@@ -64,12 +71,35 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sokol)
 
+# Sokol GP
+FetchContent_Declare(
+    sokol_gp
+    GIT_REPOSITORY https://github.com/DyonGeorgopoulos/sokol_gp.git
+)
+FetchContent_MakeAvailable(sokol_gp)
+
+# Copy sokol_gp.h to sokol directory for easy inclusion
+add_custom_command(
+    OUTPUT ${sokol_SOURCE_DIR}/sokol_gp.h
+    COMMAND ${CMAKE_COMMAND} -E copy
+        ${sokol_gp_SOURCE_DIR}/sokol_gp.h
+        ${sokol_SOURCE_DIR}/sokol_gp.h
+    DEPENDS ${sokol_gp_SOURCE_DIR}/sokol_gp.h
+    COMMENT "Copying sokol_gp.h to sokol directory"
+)
+
+# Create a custom target that depends on the copied file
+add_custom_target(copy_sokol_gp ALL
+    DEPENDS ${sokol_SOURCE_DIR}/sokol_gp.h
+)
+
 # Source files
 set(SOURCES
     src/main.c
     src/renderer.c
     src/window.c
     src/font_rendering.c
+    src/sokol.c
 )
 
 # Platform-specific sources
@@ -129,9 +159,9 @@ elseif(PLATFORM_OSX)
     find_library(COCOA_LIBRARY Cocoa)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${COCOA_LIBRARY})
     
+    # Disable bundle creation to get a regular executable
     set_target_properties(${PROJECT_NAME} PROPERTIES
-        MACOSX_BUNDLE TRUE
-        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/Info.plist
+        MACOSX_BUNDLE FALSE
     )
 else()
     # Unix/Linux - OpenGL

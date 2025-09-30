@@ -5,8 +5,8 @@
 
 bool window_init(void *appstate, const char* title, int width, int height) {
     AppState* state = (AppState*) appstate;
-    if (!state->window) {
-        fprintf(stderr, "Invalid window pointer\n");
+    if (!state) {
+        fprintf(stderr, "Invalid appstate pointer\n");
         return false;
     }
 

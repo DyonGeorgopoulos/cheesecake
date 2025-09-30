@@ -7,6 +7,7 @@
 
 // Include sokol for types
 #include "sokol_gfx.h"
+#include "sokol_gp.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -5,75 +5,7 @@
 #include <string.h>
 #include <unistd.h> 
 #include <math.h>
-#include <dirent.h>  // for directory scanning
 #include "font.shader.glsl.h"
-
-
-bool check_file_exists(const char* filepath) {
-    if (!filepath) {
-        return false;
-    }
-    
-    if (access(filepath, R_OK) != 0) {
-        printf("Font file '%s' is not accessible: %s\n", filepath, strerror(errno));
-        return false;
-    }
-    
-    return true;
-}
-
-void list_directory(const char* path) {
-    printf("Contents of '%s':\n", path);
-    DIR* dir = opendir(path);
-    if (dir == NULL) {
-        printf("  Cannot open directory: %s\n", strerror(errno));
-        return;
-    }
-    
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_name[0] != '.') {
-            printf("  %s\n", entry->d_name);
-        }
-    }
-    closedir(dir);
-    printf("\n");
-}
-
-void debug_font_paths() {
-    printf("=== DEBUGGING FONT PATHS ===\n");
-    
-    const char* asset_dirs[] = {
-        "/Users/janelle/repos/cheesecake/assets",
-        "/Users/janelle/repos/cheesecake/build/assets", 
-        "../../../../assets",
-        "../../../assets",
-        "../../assets",
-        "../assets",
-        "assets",
-        NULL
-    };
-    
-    for (int i = 0; asset_dirs[i] != NULL; i++) {
-        list_directory(asset_dirs[i]);
-    }
-    
-    const char* font_paths[] = {
-        "/Users/janelle/repos/cheesecake/assets/Roboto-Black.ttf",
-        "/Users/janelle/repos/cheesecake/assets/fonts/Roboto-Black.ttf",
-        "/Users/janelle/repos/cheesecake/build/assets/Roboto-Black.ttf",
-        "/Users/janelle/repos/cheesecake/build/assets/fonts/Roboto-Black.ttf",
-        "../../../../assets/Roboto-Black.ttf",
-        "../../../../assets/fonts/Roboto-Black.ttf",
-        NULL
-    };
-    
-    for (int i = 0; font_paths[i] != NULL; i++) {
-        check_file_exists(font_paths[i]);
-    }
-    
-    printf("=== END DEBUG ===\n\n");
-}
 
 static bool generate_font_atlas(font_t* font) {
     font->atlas_width = 512;
@@ -251,12 +183,6 @@ int text_renderer_load_font(text_renderer_t* renderer, const char* font_path, in
     font_t* font = &renderer->fonts[renderer->font_count];
     memset(font, 0, sizeof(font_t));
     
-    char cwd[1024];
-    if (getcwd(cwd, sizeof(cwd)) != NULL) {
-        printf("Current working directory: %s\n", cwd);
-    }
-    debug_font_paths();
-
     FT_Error error = FT_New_Face(renderer->ft_library, font_path, 0, &font->face);
     if (error) {
         printf("Failed to load font '%s': %d\n", font_path, error);
@@ -293,7 +219,6 @@ void text_renderer_begin(text_renderer_t* renderer) {
     renderer->index_count = 0;
 }
 
-// MODIFIED: Just add to buffers, don't draw yet
 void text_renderer_draw_text(text_renderer_t* renderer, int font_id, const char* text, 
                             float x, float y, float scale, float color[4]) {
     if (font_id < 0 || font_id >= renderer->font_count) {

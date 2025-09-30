@@ -14,6 +14,7 @@
 
 // Sokol integration
 #include "sokol_gfx.h"
+#include "sokol_gp.h"
 #include "sokol_log.h"
 
 typedef struct {
@@ -68,6 +69,14 @@ bool d3d11_backend_init(renderer_context_t* ctx) {
         d3d11_cleanup_device(d3d11_ctx);
         free(d3d11_ctx);
         return false;
+    }
+
+    sgp_desc sgpdesc = {0};
+    sgp_setup(&sgpdesc);
+    if (!sgp_is_valid())
+    {
+        fprintf(stderr, "Failed to create Sokol GP context: %s\n", sgp_get_error_message(sgp_get_last_error()));
+        exit(-1);
     }
 
     printf("sokol_gfx initialized successfully with D3D11\n");
