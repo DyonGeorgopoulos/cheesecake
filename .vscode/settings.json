@@ -6,6 +6,14 @@
         "window.h": "c",
         "renderer.h": "c",
         "*.inc": "c",
-        "common.h": "c"
+        "common.h": "c",
+        "array": "c",
+        "bitset": "c",
+        "string_view": "c",
+        "format": "c",
+        "initializer_list": "c",
+        "span": "c",
+        "sokol_log.h": "c",
+        "sokol_gp.h": "c"
     }
 }

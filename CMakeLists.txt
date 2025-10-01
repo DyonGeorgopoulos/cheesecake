@@ -67,14 +67,15 @@ include(FetchContent)
 FetchContent_Declare(
     sokol
     GIT_REPOSITORY https://github.com/floooh/sokol.git
-    GIT_TAG master
+    GIT_TAG d56a553235252b7b5e1b2e9f7bce5e71caf8838e
 )
 FetchContent_MakeAvailable(sokol)
 
 # Sokol GP
 FetchContent_Declare(
     sokol_gp
-    GIT_REPOSITORY https://github.com/DyonGeorgopoulos/sokol_gp.git
+    GIT_REPOSITORY https://github.com/edubart/sokol_gp.git
+    GIT_TAG master
 )
 FetchContent_MakeAvailable(sokol_gp)
 

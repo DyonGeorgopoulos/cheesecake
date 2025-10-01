@@ -11,7 +11,8 @@ static bool generate_font_atlas(font_t* font) {
     font->atlas_width = 512;
     font->atlas_height = 512;
     
-    uint8_t* atlas_data = calloc(font->atlas_width * font->atlas_height, 1);
+    // Allocate RGBA data (4 bytes per pixel)
+    uint8_t* atlas_data = calloc(font->atlas_width * font->atlas_height * 4, 1);
     if (!atlas_data) {
         return false;
     }
@@ -40,11 +41,16 @@ static bool generate_font_atlas(font_t* font) {
             }
         }
         
+        // Copy bitmap data to RGBA atlas
         for (unsigned int row = 0; row < bitmap->rows; row++) {
             for (unsigned int col = 0; col < bitmap->width; col++) {
-                int atlas_idx = (y + row) * font->atlas_width + (x + col);
+                int atlas_idx = ((y + row) * font->atlas_width + (x + col)) * 4;
                 int bitmap_idx = row * bitmap->pitch + col;
-                atlas_data[atlas_idx] = bitmap->buffer[bitmap_idx];
+                uint8_t alpha = bitmap->buffer[bitmap_idx];
+                atlas_data[atlas_idx + 0] = 255;  // R
+                atlas_data[atlas_idx + 1] = 255;  // G
+                atlas_data[atlas_idx + 2] = 255;  // B
+                atlas_data[atlas_idx + 3] = alpha; // A
             }
         }
         
@@ -63,37 +69,22 @@ static bool generate_font_atlas(font_t* font) {
         row_height = fmax(row_height, bitmap->rows);
     }
     
-    sg_image_data img_data = {0};
-    size_t atlas_size = font->atlas_width * font->atlas_height;
-    img_data.mip_levels[0] = (sg_range){ 
-        .ptr = atlas_data, 
-        .size = atlas_size 
-    };
+    sg_image_desc img_desc = {0};
+    img_desc.width = font->atlas_width;
+    img_desc.height = font->atlas_height;
+    img_desc.pixel_format = SG_PIXELFORMAT_RGBA8;
+    img_desc.data.subimage[0][0].ptr = atlas_data;
+    img_desc.data.subimage[0][0].size = font->atlas_width * font->atlas_height * 4;
+    img_desc.label = "font_atlas";
 
-    font->atlas_texture = sg_make_image(&(sg_image_desc){
-        .width = font->atlas_width,
-        .height = font->atlas_height,
-        .pixel_format = SG_PIXELFORMAT_R8,
-        .data = img_data,
-        .label = "font_atlas"
-    });
-
-    font->atlas_view = sg_make_view(&(sg_view_desc){
-        .texture = {
-            .image = font->atlas_texture,
-            .mip_levels = { .base = 0, .count = 1 },
-            .slices = { .base = 0, .count = 1 }
-        },
-        .label = "font_atlas_view"
-    });
-    
+    font->atlas_texture = sg_make_image(&img_desc);
+        
     free(atlas_data);
     return sg_query_image_state(font->atlas_texture) == SG_RESOURCESTATE_VALID;
 }
 
 bool text_renderer_init(text_renderer_t* renderer, int max_chars) {
     memset(renderer, 0, sizeof(text_renderer_t));
-    renderer->max_chars = max_chars;
     
     FT_Error error = FT_Init_FreeType(&renderer->ft_library);
     if (error) {
@@ -107,16 +98,6 @@ bool text_renderer_init(text_renderer_t* renderer, int max_chars) {
         FT_Done_FreeType(renderer->ft_library);
         return false;
     }
-    
-    renderer->vertices = malloc(max_chars * 4 * sizeof(text_vertex_t));
-    renderer->indices = malloc(max_chars * 6 * sizeof(uint16_t));
-    if (!renderer->vertices || !renderer->indices) {
-        free(renderer->fonts);
-        free(renderer->vertices);
-        free(renderer->indices);
-        FT_Done_FreeType(renderer->ft_library);
-        return false;
-    }
 
     renderer->sampler = sg_make_sampler(&(sg_sampler_desc){
         .min_filter = SG_FILTER_LINEAR,
@@ -126,48 +107,31 @@ bool text_renderer_init(text_renderer_t* renderer, int max_chars) {
         .label = "text_sampler"
     });
 
-    renderer->shader = sg_make_shader(font_program_shader_desc(sg_query_backend()));
-    if (sg_query_shader_state(renderer->shader) != SG_RESOURCESTATE_VALID)
-    {
-        fprintf(stderr, "failed to make custom pipeline shader\n");
-        exit(-1);
+    // Create custom shader for text rendering
+    renderer->text_shader = sg_make_shader(font_program_shader_desc(sg_query_backend()));
+    if (sg_query_shader_state(renderer->text_shader) != SG_RESOURCESTATE_VALID) {
+        fprintf(stderr, "Failed to create text shader\n");
+        sg_destroy_sampler(renderer->sampler);
+        free(renderer->fonts);
+        FT_Done_FreeType(renderer->ft_library);
+        return false;
     }
 
-    renderer->pipeline = sg_make_pipeline(&(sg_pipeline_desc){
-        .shader = renderer->shader,
-        .layout = {
-            .attrs = {
-                [0] = { .format = SG_VERTEXFORMAT_FLOAT2 },
-                [1] = { .format = SG_VERTEXFORMAT_FLOAT2 },
-                [2] = { .format = SG_VERTEXFORMAT_FLOAT4 }
-            }
-        },
-        .index_type = SG_INDEXTYPE_UINT16,
-        .colors[0] = {
-            .blend = {
-                .enabled = true,
-                .src_factor_rgb = SG_BLENDFACTOR_SRC_ALPHA,
-                .dst_factor_rgb = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-                .src_factor_alpha = SG_BLENDFACTOR_ONE,
-                .dst_factor_alpha = SG_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
-            }
-        },
-        .depth = { .write_enabled = false },
-        .cull_mode = SG_CULLMODE_NONE,
-        .label = "text_pipeline"
-    });
+    // Create custom pipeline using sokol_gp
+    sgp_pipeline_desc pip_desc = {0};
+    pip_desc.shader = renderer->text_shader;
+    pip_desc.has_vs_color = true;
+    pip_desc.blend_mode = SGP_BLENDMODE_BLEND;
+    renderer->text_pipeline = sgp_make_pipeline(&pip_desc);
 
-    renderer->vertex_buffer = sg_make_buffer(&(sg_buffer_desc){
-        .size = max_chars * 4 * sizeof(text_vertex_t),
-        .usage.dynamic_update = true,
-        .usage.vertex_buffer = true,
-    });
-
-    renderer->index_buffer = sg_make_buffer(&(sg_buffer_desc){
-        .size = max_chars * 6 * sizeof(uint16_t),
-        .usage.index_buffer = true,
-        .usage.dynamic_update = true,
-    });
+    if (sg_query_pipeline_state(renderer->text_pipeline) != SG_RESOURCESTATE_VALID) {
+        fprintf(stderr, "Failed to create text pipeline\n");
+        sg_destroy_shader(renderer->text_shader);
+        sg_destroy_sampler(renderer->sampler);
+        free(renderer->fonts);
+        FT_Done_FreeType(renderer->ft_library);
+        return false;
+    }
     
     printf("Text renderer initialized successfully\n");
     return true;
@@ -213,34 +177,83 @@ int text_renderer_load_font(text_renderer_t* renderer, const char* font_path, in
     return renderer->font_count++;
 }
 
-// NEW: Begin collecting text draws for the frame
 void text_renderer_begin(text_renderer_t* renderer) {
-    renderer->vertex_count = 0;
-    renderer->index_count = 0;
+    (void)renderer;
 }
 
 void text_renderer_draw_text(text_renderer_t* renderer, int font_id, const char* text, 
-                            float x, float y, float scale, float color[4]) {
+                            float x, float y, float scale, float color[4], text_anchor_t anchor) {
     if (font_id < 0 || font_id >= renderer->font_count) {
         return;
     }
     
     font_t* font = &renderer->fonts[font_id];
-    float cursor_x = x;
-    float cursor_y = y;
+    
+    float text_width, text_height;
+    text_renderer_get_text_size(renderer, font_id, text, scale, &text_width, &text_height);
+    
+    float offset_x = 0, offset_y = 0;
+    
+    switch (anchor) {
+        case TEXT_ANCHOR_TOP_LEFT:
+            offset_x = 0;
+            offset_y = font->ascender * scale;
+            break;
+        case TEXT_ANCHOR_TOP_CENTER:
+            offset_x = -text_width / 2.0f;
+            offset_y = font->ascender * scale;
+            break;
+        case TEXT_ANCHOR_TOP_RIGHT:
+            offset_x = -text_width;
+            offset_y = font->ascender * scale;
+            break;
+        case TEXT_ANCHOR_CENTER_LEFT:
+            offset_x = 0;
+            offset_y = -text_height / 2.0f + font->ascender * scale;
+            break;
+        case TEXT_ANCHOR_CENTER:
+            offset_x = -text_width / 2.0f;
+            offset_y = -text_height / 2.0f + font->ascender * scale;
+            break;
+        case TEXT_ANCHOR_CENTER_RIGHT:
+            offset_x = -text_width;
+            offset_y = -text_height / 2.0f + font->ascender * scale;
+            break;
+        case TEXT_ANCHOR_BOTTOM_LEFT:
+            offset_x = 0;
+            offset_y = -text_height + font->ascender * scale;
+            break;
+        case TEXT_ANCHOR_BOTTOM_CENTER:
+            offset_x = -text_width / 2.0f;
+            offset_y = -text_height + font->ascender * scale;
+            break;
+        case TEXT_ANCHOR_BOTTOM_RIGHT:
+            offset_x = -text_width;
+            offset_y = -text_height + font->ascender * scale;
+            break;
+    }
+    
+    float draw_x = x + offset_x;
+    float draw_y = y + offset_y;
+    float cursor_x = draw_x;
+    float cursor_y = draw_y;
+    
+    sgp_set_pipeline(renderer->text_pipeline);
+    sgp_set_color(color[0], color[1], color[2], color[3]);
+    sgp_set_image(0, font->atlas_texture);
+    sgp_set_sampler(0, renderer->sampler);
+    sgp_set_blend_mode(SGP_BLENDMODE_BLEND);
     
     for (const char* p = text; *p; p++) {
         char c = *p;
         
         if (c == '\n') {
-            cursor_x = x;
+            cursor_x = draw_x;
             cursor_y += font->line_height * scale;
             continue;
         }
         
         if (c < 32 || c >= 127) continue;
-        
-        if (renderer->vertex_count + 4 > renderer->max_chars * 4) break;
         
         glyph_info_t* glyph = &font->glyphs[c];
         
@@ -251,86 +264,39 @@ void text_renderer_draw_text(text_renderer_t* renderer, int font_id, const char*
         
         float x0 = cursor_x + glyph->offset_x * scale;
         float y0 = cursor_y - glyph->offset_y * scale;
-        float x1 = x0 + glyph->width * scale;
-        float y1 = y0 + glyph->height * scale;
+        float glyph_width = glyph->width * scale;
+        float glyph_height = glyph->height * scale;
         
-        text_vertex_t* verts = &renderer->vertices[renderer->vertex_count];
-        
-        verts[0].pos[0] = x0; verts[0].pos[1] = y0;
-        verts[0].tex[0] = glyph->tex_x; verts[0].tex[1] = glyph->tex_y;
-        memcpy(verts[0].color, color, 4 * sizeof(float));
-        
-        verts[1].pos[0] = x1; verts[1].pos[1] = y0;
-        verts[1].tex[0] = glyph->tex_x + glyph->tex_w; verts[1].tex[1] = glyph->tex_y;
-        memcpy(verts[1].color, color, 4 * sizeof(float));
-        
-        verts[2].pos[0] = x1; verts[2].pos[1] = y1;
-        verts[2].tex[0] = glyph->tex_x + glyph->tex_w; verts[2].tex[1] = glyph->tex_y + glyph->tex_h;
-        memcpy(verts[2].color, color, 4 * sizeof(float));
-        
-        verts[3].pos[0] = x0; verts[3].pos[1] = y1;
-        verts[3].tex[0] = glyph->tex_x; verts[3].tex[1] = glyph->tex_y + glyph->tex_h;
-        memcpy(verts[3].color, color, 4 * sizeof(float));
-        
-        uint16_t base = renderer->vertex_count;
-        renderer->indices[renderer->index_count++] = base + 0;
-        renderer->indices[renderer->index_count++] = base + 1;
-        renderer->indices[renderer->index_count++] = base + 2;
-        renderer->indices[renderer->index_count++] = base + 0;
-        renderer->indices[renderer->index_count++] = base + 2;
-        renderer->indices[renderer->index_count++] = base + 3;
-        
-        renderer->vertex_count += 4;
-        cursor_x += glyph->advance_x * scale;
-    }
-}
-
-static void create_ortho_matrix(float* matrix, float left, float right, float bottom, float top) {
-    memset(matrix, 0, 16 * sizeof(float));
-    matrix[0] = 2.0f / (right - left);
-    matrix[5] = 2.0f / (top - bottom);
-    matrix[10] = -1.0f;
-    matrix[12] = -(right + left) / (right - left);
-    matrix[13] = -(top + bottom) / (top - bottom);
-    matrix[15] = 1.0f;
-}
-
-// MODIFIED: Now actually renders everything at once
-void text_renderer_render(text_renderer_t* renderer, int width, int height) {
-    if (renderer->vertex_count == 0) {
-        return;  // Nothing to draw
-    }
-    
-    // Update buffers ONCE per frame
-    sg_update_buffer(renderer->vertex_buffer, &(sg_range){
-        .ptr = renderer->vertices,
-        .size = renderer->vertex_count * sizeof(text_vertex_t)
-    });
-    
-    sg_update_buffer(renderer->index_buffer, &(sg_range){
-        .ptr = renderer->indices,
-        .size = renderer->index_count * sizeof(uint16_t)
-    });
-    
-    // Create orthographic projection
-    float mvp[16];
-    create_ortho_matrix(mvp, 0, width, height, 0);
-    
-    sg_apply_pipeline(renderer->pipeline);
-    sg_apply_uniforms(0, &(sg_range){mvp, 64});
-    
-    // Use the first font's atlas (you might want to make this more flexible)
-    if (renderer->font_count > 0) {
-        sg_bindings bindings = {
-            .vertex_buffers[0] = renderer->vertex_buffer,
-            .index_buffer = renderer->index_buffer,
-            .views[0] = renderer->fonts[0].atlas_view,
-            .samplers[0] = renderer->sampler
+        sgp_rect dest_rect = {
+            .x = x0,
+            .y = y0,
+            .w = glyph_width,
+            .h = glyph_height
         };
         
-        sg_apply_bindings(&bindings);
-        sg_draw(0, renderer->index_count, 1);
+        sgp_rect src_rect = {
+            .x = glyph->tex_x * font->atlas_width,
+            .y = glyph->tex_y * font->atlas_height,
+            .w = glyph->tex_w * font->atlas_width,
+            .h = glyph->tex_h * font->atlas_height
+        };
+        
+        sgp_draw_textured_rect(0, dest_rect, src_rect);
+        
+        cursor_x += glyph->advance_x * scale;
     }
+    
+    sgp_reset_pipeline();
+    sgp_reset_sampler(0);
+    sgp_reset_image(0);
+    sgp_reset_blend_mode();
+    sgp_reset_color();
+}
+
+void text_renderer_render(text_renderer_t* renderer, int width, int height) {
+    (void)renderer;
+    (void)width;
+    (void)height;
 }
 
 void text_renderer_get_text_size(text_renderer_t* renderer, int font_id, const char* text, 
@@ -373,13 +339,11 @@ void text_renderer_shutdown(text_renderer_t* renderer) {
     }
     free(renderer->fonts);
     
+    sg_destroy_pipeline(renderer->text_pipeline);
+    sg_destroy_shader(renderer->text_shader);
+    sg_destroy_sampler(renderer->sampler);
+    
     FT_Done_FreeType(renderer->ft_library);
-    
-    sg_destroy_buffer(renderer->vertex_buffer);
-    sg_destroy_buffer(renderer->index_buffer);
-    
-    free(renderer->vertices);
-    free(renderer->indices);
     
     memset(renderer, 0, sizeof(text_renderer_t));
 }

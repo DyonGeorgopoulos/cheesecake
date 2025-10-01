@@ -4,7 +4,6 @@
 #include <string.h>
 
 // Sokol implementation
-#define SOKOL_IMPL
 #include "sokol_gfx.h"
 #include "sokol_log.h"
 
@@ -104,7 +103,6 @@ void renderer_begin_frame(renderer_context_t* ctx) {
 
     // Begin sokol pass
     sg_pass pass = {
-        .action = g_pass_action,
         .swapchain = swapchain
     };
     

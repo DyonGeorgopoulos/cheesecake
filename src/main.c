@@ -85,17 +85,22 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
         fprintf(stderr, "failed to make custom pipeline shader\n");
         exit(-1);
     }
+    sgp_pipeline_desc pip_desc = {0};
+    pip_desc.shader = g_shader;
+    pip_desc.has_vs_color = true;
+    pip_desc.blend_mode = SGP_BLENDMODE_BLEND;
+    g_pipeline = sgp_make_pipeline(&pip_desc);
 
-    g_pipeline = sg_make_pipeline(&(sg_pipeline_desc){
-        // if the vertex layout doesn't have gaps, don't need to provide strides and offsets
-        .layout = {
-            .attrs = {
-                [0].format = SG_VERTEXFORMAT_FLOAT3,
-                [1].format = SG_VERTEXFORMAT_FLOAT4
-            }
-        },
-        .shader = g_shader,
-    });
+    // g_pipeline = sg_make_pipeline(&(sg_pipeline_desc){
+    //     // if the vertex layout doesn't have gaps, don't need to provide strides and offsets
+    //     .layout = {_
+    //         .attrs = {
+    //             [0].format = SG_VERTEXFORMAT_FLOAT3,
+    //             [1].format = SG_VERTEXFORMAT_FLOAT4
+    //         }
+    //     },
+    //     .shader = g_shader,
+    // });
 
     // a vertex buffer with the triangle vertices
     const float vertices[] = {
@@ -141,30 +146,30 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         renderer_resize(&renderer_ctx, current_width, current_height);
     }
 
+    float ratio = current_width/(float)current_height;
+    sgp_set_pipeline(g_pipeline);
+    sgp_begin(current_width, current_height);
+    sgp_viewport(0, 0, current_width, current_height);
+    sgp_project(0, (float)current_width, 0, (float)current_height);
+    sgp_set_color(0.2f, 0.3f, 0.5f, 1);
+    sgp_draw_filled_rect(0, 0, current_width/2, current_height/2);
+
     // Begin frame
     renderer_begin_frame(&renderer_ctx);
 
     // update this for drawing all the entities
-    sg_apply_pipeline(g_pipeline);
-    sg_apply_bindings(&g_bind);
-    sg_draw(0, 3, 1);
-    
-    
-    // text / ui code should go here
-    sg_apply_pipeline(renderer.pipeline);
 
-    text_renderer_begin(&renderer);
-    
-    // Draw FPS counter in top-left corner
+    // // Draw FPS counter in top-left corner
     text_renderer_draw_text(&renderer, state->font, fps_counter.fps_text, 
-                           0, 20, 1.0f, (float[4]){0.0f, 1.0f, 0.0f, 1.0f});
+                            0, 0, 1.0f, (float[4]){0.0f, 1.0f, 0.0f, 1.0f}, TEXT_ANCHOR_TOP_LEFT);
     
-    text_renderer_draw_text(&renderer, state->font, "GAME", 
-    current_width / 2, 20, 1.0f, (float[4]){0.0f, 1.0f, 0.0f, 1.0f});
+    text_renderer_draw_text(&renderer, state->font, "A", 
+    current_width / 2, 0, 1.0f, (float[4])SG_WHITE, TEXT_ANCHOR_TOP_CENTER);
 
-    text_renderer_render(&renderer, current_width, current_height); 
 
     // End frame and present
+    sgp_flush();
+    sgp_end();
     renderer_end_frame(&renderer_ctx);
     window_present(&state->window);
     app_wait_for_next_frame(appstate);
