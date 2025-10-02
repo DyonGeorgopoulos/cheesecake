@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug SokolApp",
+            "name": "Debug Cheesecake",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/SokolApp.exe",
+            "program": "${workspaceFolder}/build/Cheesecake.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build",

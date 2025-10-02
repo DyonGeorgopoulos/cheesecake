@@ -1,8 +1,19 @@
 {
     "files.associations": {
+        "stdio.h": "c",
+        "font_rendering.h": "c",
+        "dirent.h": "c",
+        "window.h": "c",
         "renderer.h": "c",
-        "chrono": "c",
-        "cimgui.h": "c",
-        "sokol_imgui.h": "c"
+        "*.inc": "c",
+        "common.h": "c",
+        "array": "c",
+        "bitset": "c",
+        "string_view": "c",
+        "format": "c",
+        "initializer_list": "c",
+        "span": "c",
+        "sokol_log.h": "c",
+        "sokol_gp.h": "c"
     }
 }

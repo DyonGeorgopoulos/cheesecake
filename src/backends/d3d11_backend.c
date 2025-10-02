@@ -1,19 +1,17 @@
 #ifdef SOKOL_D3D11
 
-#include "../renderer.h"
-#include <SDL3/SDL.h>
-
 #define COBJMACROS
 #include <windows.h>
 #include <d3d11.h>
 #include <dxgi.h>
-
+#include <SDL3/SDL.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "common.h"
 
-// Sokol integration
 #include "sokol_gfx.h"
+#include "sokol_gp.h"
 #include "sokol_log.h"
 
 typedef struct {
@@ -22,125 +20,108 @@ typedef struct {
     IDXGISwapChain* swap_chain;
     ID3D11RenderTargetView* render_target_view;
     ID3D11DepthStencilView* depth_stencil_view;
-    SDL_Window* window;
 } d3d11_context_t;
 
+static d3d11_context_t g_d3d11_ctx = {0};
+
 // Forward declarations
-static bool d3d11_create_device_and_swapchain(d3d11_context_t* ctx, int width, int height);
-static void d3d11_cleanup_device(d3d11_context_t* ctx);
-static void d3d11_create_render_targets(d3d11_context_t* ctx);
-static void d3d11_cleanup_render_targets(d3d11_context_t* ctx);
-static sg_environment d3d11_get_sokol_environment(d3d11_context_t* ctx);
+static bool d3d11_create_device_and_swapchain(AppState* state);
+static void d3d11_cleanup_device(void);
+static void d3d11_create_render_targets(void);
+static void d3d11_cleanup_render_targets(void);
+static sg_environment d3d11_get_sokol_environment(void);
+sg_swapchain renderer_get_swapchain(AppState* state);
 
-bool d3d11_backend_init(renderer_context_t* ctx) {
-    if (!ctx || !ctx->window) {
-        fprintf(stderr, "Invalid context or window for D3D11 backend\n");
+bool renderer_init(AppState* state) {
+    if (!state || !state->window) {
+        fprintf(stderr, "Invalid state or window for D3D11 backend\n");
         return false;
     }
 
-    // Allocate D3D11 context
-    d3d11_context_t* d3d11_ctx = (d3d11_context_t*)calloc(1, sizeof(d3d11_context_t));
-    if (!d3d11_ctx) {
-        fprintf(stderr, "Failed to allocate D3D11 context\n");
-        return false;
-    }
-    
-    d3d11_ctx->window = ctx->window;
-
-    if (!d3d11_create_device_and_swapchain(d3d11_ctx, ctx->width, ctx->height)) {
-        free(d3d11_ctx);
+    if (!d3d11_create_device_and_swapchain(state)) {
         return false;
     }
 
     printf("D3D11 device created, now initializing sokol_gfx...\n");
 
-    // Initialize sokol_gfx with D3D11 context
     sg_desc sg_desc = {
-        .environment = d3d11_get_sokol_environment(d3d11_ctx)
-        // Logger will be initialized by the main renderer
+        .environment = d3d11_get_sokol_environment(),
+        .logger.func = slog_func,
     };
+    
     sg_setup(&sg_desc);
 
     if (!sg_isvalid()) {
         fprintf(stderr, "Failed to initialize sokol_gfx with D3D11\n");
-        d3d11_cleanup_device(d3d11_ctx);
-        free(d3d11_ctx);
+        d3d11_cleanup_device();
         return false;
     }
 
-    printf("sokol_gfx initialized successfully with D3D11\n");
+    sgp_desc sgpdesc = {0};
+    sgp_setup(&sgpdesc);
+    if (!sgp_is_valid()) {
+        fprintf(stderr, "Failed to create Sokol GP context: %s\n", 
+                sgp_get_error_message(sgp_get_last_error()));
+        sg_shutdown();
+        d3d11_cleanup_device();
+        return false;
+    }
 
-    ctx->native_context = d3d11_ctx;
     printf("D3D11 backend initialized successfully\n");
     return true;
 }
 
-void d3d11_backend_shutdown(renderer_context_t* ctx) {
-    if (!ctx || !ctx->native_context) {
-        return;
-    }
-
-    d3d11_context_t* d3d11_ctx = (d3d11_context_t*)ctx->native_context;
-    d3d11_cleanup_device(d3d11_ctx);
-    free(d3d11_ctx);
-    ctx->native_context = NULL;
+void renderer_shutdown(AppState* state) {
+    (void)state;
+    
+    sgp_shutdown();
+    sg_shutdown();
+    d3d11_cleanup_device();
 }
 
-void d3d11_backend_begin_frame(renderer_context_t* ctx) {
-    if (!ctx || !ctx->native_context) {
-        return;
-    }
-
-    d3d11_context_t* d3d11_ctx = (d3d11_context_t*)ctx->native_context;
-
-    // Set render targets using COM interface
-    d3d11_ctx->device_context->lpVtbl->OMSetRenderTargets(
-        d3d11_ctx->device_context, 
+void renderer_begin_frame(AppState* state) {
+    // Set render targets
+    g_d3d11_ctx.device_context->lpVtbl->OMSetRenderTargets(
+        g_d3d11_ctx.device_context, 
         1, 
-        &d3d11_ctx->render_target_view, 
-        d3d11_ctx->depth_stencil_view
+        &g_d3d11_ctx.render_target_view, 
+        g_d3d11_ctx.depth_stencil_view
     );
 
     // Set viewport
     D3D11_VIEWPORT viewport = {
         .TopLeftX = 0.0f,
         .TopLeftY = 0.0f,
-        .Width = (float)ctx->width,
-        .Height = (float)ctx->height,
+        .Width = (float)state->width,
+        .Height = (float)state->height,
         .MinDepth = 0.0f,
         .MaxDepth = 1.0f
     };
 
-    d3d11_ctx->device_context->lpVtbl->RSSetViewports(d3d11_ctx->device_context, 1, &viewport);
+    g_d3d11_ctx.device_context->lpVtbl->RSSetViewports(g_d3d11_ctx.device_context, 1, &viewport);
 }
 
-void d3d11_backend_end_frame(renderer_context_t* ctx) {
-    if (!ctx || !ctx->native_context) {
-        return;
-    }
-
-    d3d11_context_t* d3d11_ctx = (d3d11_context_t*)ctx->native_context;
-    d3d11_ctx->swap_chain->lpVtbl->Present(d3d11_ctx->swap_chain, 1, 0);
+void renderer_end_frame(AppState* state) {
+    (void)state;
+    g_d3d11_ctx.swap_chain->lpVtbl->Present(g_d3d11_ctx.swap_chain, 1, 0);
 }
 
-void d3d11_backend_resize(renderer_context_t* ctx, int width, int height) {
-    if (!ctx || !ctx->native_context || width <= 0 || height <= 0) {
+void renderer_resize(AppState* state, int width, int height) {
+    if (width <= 0 || height <= 0) {
         return;
     }
-
-    d3d11_context_t* d3d11_ctx = (d3d11_context_t*)ctx->native_context;
 
     // Clean up old render targets
-    d3d11_cleanup_render_targets(d3d11_ctx);
+    d3d11_cleanup_render_targets();
 
     // Resize swap chain buffers
-    HRESULT hr = d3d11_ctx->swap_chain->lpVtbl->ResizeBuffers(
-        d3d11_ctx->swap_chain, 
-        0,              // Keep buffer count
+    HRESULT hr = g_d3d11_ctx.swap_chain->lpVtbl->ResizeBuffers(
+        g_d3d11_ctx.swap_chain, 
+        0,
         width, 
         height, 
-        DXGI_FORMAT_UNKNOWN,  // Keep format
-        0               // No flags
+        DXGI_FORMAT_UNKNOWN,
+        0
     );
 
     if (FAILED(hr)) {
@@ -148,58 +129,51 @@ void d3d11_backend_resize(renderer_context_t* ctx, int width, int height) {
         return;
     }
 
-    // Recreate render targets with new size
-    d3d11_create_render_targets(d3d11_ctx);
+    // Update state dimensions
+    state->width = width;
+    state->height = height;
+
+    // Recreate render targets
+    d3d11_create_render_targets();
 }
 
-sg_swapchain d3d11_get_swapchain(renderer_context_t* ctx) {
-    if (!ctx || !ctx->native_context) {
-        return (sg_swapchain){0};
-    }
-
-    d3d11_context_t* d3d11_ctx = (d3d11_context_t*)ctx->native_context;
-    
+sg_swapchain get_swapchain(AppState* state) {
     return (sg_swapchain){
-        .width = ctx->width,
-        .height = ctx->height,
+        .width = state->width,
+        .height = state->height,
         .sample_count = 1,
         .color_format = SG_PIXELFORMAT_BGRA8,
         .depth_format = SG_PIXELFORMAT_DEPTH_STENCIL,
         .d3d11 = {
-            .render_view = d3d11_ctx->render_target_view,
+            .render_view = g_d3d11_ctx.render_target_view,
             .resolve_view = NULL,
-            .depth_stencil_view = d3d11_ctx->depth_stencil_view
+            .depth_stencil_view = g_d3d11_ctx.depth_stencil_view
         }
     };
 }
 
-// Sokol environment setup
-static sg_environment d3d11_get_sokol_environment(d3d11_context_t* ctx) {
+static sg_environment d3d11_get_sokol_environment(void) {
     sg_environment env = {0};
     
     env.defaults.color_format = SG_PIXELFORMAT_BGRA8;
     env.defaults.depth_format = SG_PIXELFORMAT_DEPTH_STENCIL;
     env.defaults.sample_count = 1;
     
-    // Set D3D11 specific environment
-    env.d3d11.device = ctx->device;
-    env.d3d11.device_context = ctx->device_context;
+    env.d3d11.device = g_d3d11_ctx.device;
+    env.d3d11.device_context = g_d3d11_ctx.device_context;
     
-    // Ensure the device pointers are valid
-    if (!ctx->device || !ctx->device_context) {
+    if (!g_d3d11_ctx.device || !g_d3d11_ctx.device_context) {
         fprintf(stderr, "D3D11 device or context is NULL in sokol environment setup\n");
     } else {
         printf("Setting up sokol environment with valid D3D11 device: %p, context: %p\n", 
-               (void*)ctx->device, (void*)ctx->device_context);
+               (void*)g_d3d11_ctx.device, (void*)g_d3d11_ctx.device_context);
     }
     
     return env;
 }
 
-// Private helper functions
-static bool d3d11_create_device_and_swapchain(d3d11_context_t* ctx, int width, int height) {
-    // Get HWND using SDL3 properties API
-    SDL_PropertiesID props = SDL_GetWindowProperties(ctx->window);
+static bool d3d11_create_device_and_swapchain(AppState* state) {
+    SDL_PropertiesID props = SDL_GetWindowProperties(state->window);
     HWND hwnd = (HWND)SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
     
     if (!hwnd) {
@@ -207,18 +181,14 @@ static bool d3d11_create_device_and_swapchain(d3d11_context_t* ctx, int width, i
         return false;
     }
 
-    // Configure swap chain descriptor
     DXGI_SWAP_CHAIN_DESC swap_desc = {
         .BufferDesc = {
-            .Width = (UINT)width,
-            .Height = (UINT)height,
+            .Width = (UINT)state->width,
+            .Height = (UINT)state->height,
             .RefreshRate = { .Numerator = 60, .Denominator = 1 },
             .Format = DXGI_FORMAT_B8G8R8A8_UNORM
         },
-        .SampleDesc = {
-            .Count = 1,
-            .Quality = 0
-        },
+        .SampleDesc = { .Count = 1, .Quality = 0 },
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
         .BufferCount = 2,
         .OutputWindow = hwnd,
@@ -226,27 +196,25 @@ static bool d3d11_create_device_and_swapchain(d3d11_context_t* ctx, int width, i
         .SwapEffect = DXGI_SWAP_EFFECT_DISCARD
     };
 
-    // Device creation flags
     UINT create_flags = 0;
     #ifdef DEBUG
     create_flags |= D3D11_CREATE_DEVICE_DEBUG;
     #endif
 
-    // Create device and swap chain
     D3D_FEATURE_LEVEL feature_level;
     HRESULT hr = D3D11CreateDeviceAndSwapChain(
-        NULL,                           // Default adapter
-        D3D_DRIVER_TYPE_HARDWARE,       // Hardware acceleration
-        NULL,                           // No software module
-        create_flags,                   // Creation flags
-        NULL,                           // Feature levels (use defaults)
-        0,                              // Number of feature levels
-        D3D11_SDK_VERSION,              // SDK version
-        &swap_desc,                     // Swap chain descriptor
-        &ctx->swap_chain,               // Output swap chain
-        &ctx->device,                   // Output device
-        &feature_level,                 // Output feature level
-        &ctx->device_context            // Output device context
+        NULL,
+        D3D_DRIVER_TYPE_HARDWARE,
+        NULL,
+        create_flags,
+        NULL,
+        0,
+        D3D11_SDK_VERSION,
+        &swap_desc,
+        &g_d3d11_ctx.swap_chain,
+        &g_d3d11_ctx.device,
+        &feature_level,
+        &g_d3d11_ctx.device_context
     );
 
     if (FAILED(hr)) {
@@ -256,20 +224,18 @@ static bool d3d11_create_device_and_swapchain(d3d11_context_t* ctx, int width, i
 
     printf("D3D11 device created with feature level: 0x%X\n", feature_level);
 
-    // Create render targets
-    d3d11_create_render_targets(ctx);
+    d3d11_create_render_targets();
     return true;
 }
 
-static void d3d11_create_render_targets(d3d11_context_t* ctx) {
-    if (!ctx->swap_chain) {
+static void d3d11_create_render_targets(void) {
+    if (!g_d3d11_ctx.swap_chain) {
         return;
     }
 
-    // Get back buffer
     ID3D11Texture2D* back_buffer = NULL;
-    HRESULT hr = ctx->swap_chain->lpVtbl->GetBuffer(
-        ctx->swap_chain, 
+    HRESULT hr = g_d3d11_ctx.swap_chain->lpVtbl->GetBuffer(
+        g_d3d11_ctx.swap_chain, 
         0, 
         &IID_ID3D11Texture2D, 
         (void**)&back_buffer
@@ -280,12 +246,11 @@ static void d3d11_create_render_targets(d3d11_context_t* ctx) {
         return;
     }
 
-    // Create render target view
-    hr = ctx->device->lpVtbl->CreateRenderTargetView(
-        ctx->device, 
+    hr = g_d3d11_ctx.device->lpVtbl->CreateRenderTargetView(
+        g_d3d11_ctx.device, 
         (ID3D11Resource*)back_buffer, 
         NULL, 
-        &ctx->render_target_view
+        &g_d3d11_ctx.render_target_view
     );
 
     if (FAILED(hr)) {
@@ -294,12 +259,10 @@ static void d3d11_create_render_targets(d3d11_context_t* ctx) {
         return;
     }
 
-    // Get back buffer description for depth buffer sizing
     D3D11_TEXTURE2D_DESC back_desc;
     back_buffer->lpVtbl->GetDesc(back_buffer, &back_desc);
     back_buffer->lpVtbl->Release(back_buffer);
 
-    // Create depth stencil texture
     D3D11_TEXTURE2D_DESC depth_desc = {
         .Width = back_desc.Width,
         .Height = back_desc.Height,
@@ -309,30 +272,27 @@ static void d3d11_create_render_targets(d3d11_context_t* ctx) {
         .SampleDesc = { .Count = 1, .Quality = 0 },
         .Usage = D3D11_USAGE_DEFAULT,
         .BindFlags = D3D11_BIND_DEPTH_STENCIL,
-        .CPUAccessFlags = 0,
-        .MiscFlags = 0
     };
 
     ID3D11Texture2D* depth_texture = NULL;
-    hr = ctx->device->lpVtbl->CreateTexture2D(ctx->device, &depth_desc, NULL, &depth_texture);
+    hr = g_d3d11_ctx.device->lpVtbl->CreateTexture2D(g_d3d11_ctx.device, &depth_desc, NULL, &depth_texture);
     
     if (FAILED(hr)) {
         fprintf(stderr, "Failed to create depth texture: 0x%08lX\n", hr);
         return;
     }
 
-    // Create depth stencil view
     D3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc = {
         .Format = depth_desc.Format,
         .ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D,
         .Texture2D = { .MipSlice = 0 }
     };
 
-    hr = ctx->device->lpVtbl->CreateDepthStencilView(
-        ctx->device, 
+    hr = g_d3d11_ctx.device->lpVtbl->CreateDepthStencilView(
+        g_d3d11_ctx.device, 
         (ID3D11Resource*)depth_texture, 
         &dsv_desc, 
-        &ctx->depth_stencil_view
+        &g_d3d11_ctx.depth_stencil_view
     );
 
     depth_texture->lpVtbl->Release(depth_texture);
@@ -342,34 +302,34 @@ static void d3d11_create_render_targets(d3d11_context_t* ctx) {
     }
 }
 
-static void d3d11_cleanup_render_targets(d3d11_context_t* ctx) {
-    if (ctx->render_target_view) {
-        ctx->render_target_view->lpVtbl->Release(ctx->render_target_view);
-        ctx->render_target_view = NULL;
+static void d3d11_cleanup_render_targets(void) {
+    if (g_d3d11_ctx.render_target_view) {
+        g_d3d11_ctx.render_target_view->lpVtbl->Release(g_d3d11_ctx.render_target_view);
+        g_d3d11_ctx.render_target_view = NULL;
     }
     
-    if (ctx->depth_stencil_view) {
-        ctx->depth_stencil_view->lpVtbl->Release(ctx->depth_stencil_view);
-        ctx->depth_stencil_view = NULL;
+    if (g_d3d11_ctx.depth_stencil_view) {
+        g_d3d11_ctx.depth_stencil_view->lpVtbl->Release(g_d3d11_ctx.depth_stencil_view);
+        g_d3d11_ctx.depth_stencil_view = NULL;
     }
 }
 
-static void d3d11_cleanup_device(d3d11_context_t* ctx) {
-    d3d11_cleanup_render_targets(ctx);
+static void d3d11_cleanup_device(void) {
+    d3d11_cleanup_render_targets();
 
-    if (ctx->swap_chain) {
-        ctx->swap_chain->lpVtbl->Release(ctx->swap_chain);
-        ctx->swap_chain = NULL;
+    if (g_d3d11_ctx.swap_chain) {
+        g_d3d11_ctx.swap_chain->lpVtbl->Release(g_d3d11_ctx.swap_chain);
+        g_d3d11_ctx.swap_chain = NULL;
     }
 
-    if (ctx->device_context) {
-        ctx->device_context->lpVtbl->Release(ctx->device_context);
-        ctx->device_context = NULL;
+    if (g_d3d11_ctx.device_context) {
+        g_d3d11_ctx.device_context->lpVtbl->Release(g_d3d11_ctx.device_context);
+        g_d3d11_ctx.device_context = NULL;
     }
 
-    if (ctx->device) {
-        ctx->device->lpVtbl->Release(ctx->device);
-        ctx->device = NULL;
+    if (g_d3d11_ctx.device) {
+        g_d3d11_ctx.device->lpVtbl->Release(g_d3d11_ctx.device);
+        g_d3d11_ctx.device = NULL;
     }
 }
 
