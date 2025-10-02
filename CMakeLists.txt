@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(SokolApp VERSION 1.0.0)
+project(Cheesecake VERSION 1.0.0)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
@@ -79,6 +79,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sokol_gp)
 
+# Sokol Tools (for shader compilation)
+FetchContent_Declare(
+    sokol-tools-bin
+    GIT_REPOSITORY https://github.com/floooh/sokol-tools-bin.git
+    GIT_TAG 3388e3b2c04b532a55b072d79e77c9fc44c3ca50
+)
+FetchContent_MakeAvailable(sokol-tools-bin)
+
 # Copy sokol_gp.h to sokol directory for easy inclusion
 add_custom_command(
     OUTPUT ${sokol_SOURCE_DIR}/sokol_gp.h
@@ -92,6 +100,40 @@ add_custom_command(
 # Create a custom target that depends on the copied file
 add_custom_target(copy_sokol_gp ALL
     DEPENDS ${sokol_SOURCE_DIR}/sokol_gp.h
+)
+
+# Determine the correct sokol-shdc executable based on platform
+if(WIN32)
+    set(SOKOL_SHDC "${sokol-tools-bin_SOURCE_DIR}/bin/win32/sokol-shdc.exe")
+elseif(APPLE)
+    set(SOKOL_SHDC "${sokol-tools-bin_SOURCE_DIR}/bin/osx/sokol-shdc")
+elseif(UNIX)
+    set(SOKOL_SHDC "${sokol-tools-bin_SOURCE_DIR}/bin/linux/sokol-shdc")
+endif()
+
+# Function to compile shaders
+function(compile_shader INPUT_FILE OUTPUT_FILE)
+    add_custom_command(
+        OUTPUT ${OUTPUT_FILE}
+        COMMAND ${SOKOL_SHDC}
+            --input ${INPUT_FILE}
+            --output ${OUTPUT_FILE}
+            --slang glsl410:glsl300es:hlsl4:metal_macos:wgsl
+        DEPENDS ${INPUT_FILE}
+        COMMENT "Compiling shader ${INPUT_FILE}"
+        VERBATIM
+    )
+endfunction()
+
+# Compile shaders
+compile_shader(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/shader.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/shader.glsl.h
+)
+
+compile_shader(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/font.shader.glsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/font.shader.glsl.h
 )
 
 # Source files
@@ -113,6 +155,15 @@ endif()
 
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+# Make sure shaders are compiled before building
+add_custom_target(compile_shaders ALL
+    DEPENDS 
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/shader.glsl.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/font.shader.glsl.h
+)
+
+add_dependencies(${PROJECT_NAME} compile_shaders)
 
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
