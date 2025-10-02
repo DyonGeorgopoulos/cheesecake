@@ -8,7 +8,7 @@
 #include <SDL3/SDL_main.h>
 
 #include "font_rendering.h"
-
+#include "renderer.h"
 #include "shader.glsl.h"
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 720
@@ -68,10 +68,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
         return -1;
     }
 
+    printf("window first");
+
     // Initialize renderer
-    if (!renderer_init(&renderer_ctx, window_get_handle(&state->window), WINDOW_WIDTH, WINDOW_HEIGHT)) {
+    if (!renderer_init(state)) {
         fprintf(stderr, "Failed to  initialize renderer\n");
-        window_shutdown(&state->window);
+        window_shutdown(state->window);
         return -1;
     }
 
@@ -116,16 +118,15 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     // Update FPS counter
     fps_counter_update(state);
 
-    // Handle window resize
     int current_width, current_height;
     SDL_GetWindowSizeInPixels(state->window, &current_width, &current_height);
-    if (current_width != renderer_ctx.width || current_height != renderer_ctx.height) {
-        renderer_resize(&renderer_ctx, current_width, current_height);
-    }
 
     // Begin frame
-    renderer_begin_frame(&renderer_ctx);
+    renderer_begin_frame(state);
 
+    // Begin render pass
+    sg_pass pass = {.swapchain = renderer_get_swapchain(state)};
+    sg_begin_pass(&pass);
     float ratio = current_width/(float)current_height;
     sgp_set_pipeline(g_pipeline);
     sgp_begin(current_width, current_height);
@@ -144,8 +145,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     // End frame and present
     sgp_flush();
     sgp_end();
-    renderer_end_frame(&renderer_ctx);
-    window_present(&state->window);
+
+    sg_end_pass();
+    sg_commit();
+    renderer_end_frame(state);
     app_wait_for_next_frame(appstate);
     return SDL_APP_CONTINUE;
 }
@@ -159,9 +162,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
             break;
             
         case SDL_EVENT_WINDOW_RESIZED:
-            if (event->window.windowID == SDL_GetWindowID(state->window)) {
-                state->width = event->window.data1;
-                state->height = event->window.data2;
+            int current_width, current_height;
+            SDL_GetWindowSizeInPixels(state->window, &current_width, &current_height);
+            if (current_width != state->width || current_height != state->height) {
+                renderer_resize(state, current_width, current_height);
             }
             break;
             
@@ -187,7 +191,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
     // Cleanup
     printf("Shutting down application...\n");
     renderer_shutdown(&renderer_ctx);
-    window_shutdown(&state->window);
+    window_shutdown(state->window);
 
     printf("Application shut down successfully\n");
     // SDL will clean up the window/renderer for us.

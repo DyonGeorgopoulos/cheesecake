@@ -62,8 +62,17 @@ if(NOT Freetype_FOUND)
     add_library(Freetype::Freetype ALIAS freetype)
 endif()
 
-# Sokol
+# Flecs
 include(FetchContent)
+FetchContent_Declare(
+    flecs
+    GIT_REPOSITORY https://github.com/SanderMertens/flecs.git
+    GIT_TAG master
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(flecs)
+
+# Sokol
 FetchContent_Declare(
     sokol
     GIT_REPOSITORY https://github.com/floooh/sokol.git
@@ -176,6 +185,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME} PRIVATE
     SDL3::SDL3
     Freetype::Freetype
+    flecs::flecs_static
 )
 
 # Platform-specific configurations
