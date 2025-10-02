@@ -61,7 +61,7 @@ bool renderer_init(AppState* state) {
     g_gl_ctx.pass_action = (sg_pass_action) {
         .colors[0] = { 
             .load_action = SG_LOADACTION_CLEAR, 
-            .clear_value = {0.5f, 0.5f, 0.5f, 1.0f}  // Default gray
+            .clear_value = {0.0f, 0.0f, 0.0f, 1.0f}
         }
     };
 
@@ -114,13 +114,6 @@ void renderer_resize(AppState* state, int width, int height) {
     // Update state dimensions
     state->width = width;
     state->height = height;
-}
-
-void renderer_set_clear_color(float r, float g, float b, float a) {
-    g_gl_ctx.pass_action.colors[0].clear_value.r = r;
-    g_gl_ctx.pass_action.colors[0].clear_value.g = g;
-    g_gl_ctx.pass_action.colors[0].clear_value.b = b;
-    g_gl_ctx.pass_action.colors[0].clear_value.a = a;
 }
 
 sg_swapchain get_swapchain(AppState* state) {

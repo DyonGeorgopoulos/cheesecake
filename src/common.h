@@ -10,7 +10,7 @@ typedef struct AppState {
     float last_tick;
     float current_tick;
     float delta_time;
-    int font;
+    int font[5];
   } AppState;
 
 #endif

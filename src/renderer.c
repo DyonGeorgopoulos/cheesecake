@@ -22,10 +22,6 @@ void renderer_handle_resize(AppState* state, int width, int height) {
     renderer_resize(state, width, height);
 }
 
-void renderer_clear_color(float r, float g, float b, float a) {
-    renderer_set_clear_color(r, g, b, a);
-}
-
 sg_swapchain renderer_get_swapchain(AppState* state) {
     return get_swapchain(state);
 }

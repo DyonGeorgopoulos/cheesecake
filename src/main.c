@@ -18,8 +18,6 @@
 
 static sg_shader g_shader;
 sg_pipeline g_pipeline;
-sg_bindings g_bind;
-renderer_context_t renderer_ctx;
 text_renderer_t renderer;
 
 // FPS counter state
@@ -98,8 +96,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     text_renderer_init(&renderer, 1000);
     // load the font we want to use. 
     // TODO: Update state->font to be a hasmap that keymaps the fonts so they can be looked up.c 
-    state->font = text_renderer_load_font(&renderer, "assets/fonts/PxPlus_Toshiba.ttf", 16);
-
+    state->font[0] = text_renderer_load_font(&renderer, "assets/fonts/PxPlus_Toshiba.ttf", 16);
+    state->font[1] = text_renderer_load_font(&renderer, "assets/fonts/Roboto-Black.ttf", 12);
     // Initialize FPS counter
     fps_counter.last_fps_update = SDL_GetTicks();
     snprintf(fps_counter.fps_text, sizeof(fps_counter.fps_text), "FPS: 0.0");
@@ -127,6 +125,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     // Begin render pass
     sg_pass pass = {.swapchain = renderer_get_swapchain(state)};
     sg_begin_pass(&pass);
+
     float ratio = current_width/(float)current_height;
     sgp_set_pipeline(g_pipeline);
     sgp_begin(current_width, current_height);
@@ -134,13 +133,13 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     sgp_set_color(0.2f, 0.3f, 0.5f, 1);
     sgp_draw_filled_rect(0, 0, current_width/2, current_height/2);
 
-    // // Draw FPS counter in top-left corner
-    text_renderer_draw_text(&renderer, state->font, fps_counter.fps_text, 
-                            0, 0, 1.0f, (float[4])SG_WHITE, TEXT_ANCHOR_TOP_LEFT);
-    
-    text_renderer_draw_text(&renderer, state->font, "WORK IN PROGRESS", 
-    current_width / 2, 0, 1.0f, (float[4])SG_WHITE, TEXT_ANCHOR_TOP_CENTER);
 
+    // // Draw FPS counter in top-left corner
+    text_renderer_draw_text(&renderer, state->font[0], fps_counter.fps_text, 
+                            0, 0, 1.0f, (float[4])SG_WHITE, TEXT_ANCHOR_TOP_LEFT);
+
+    text_renderer_draw_text(&renderer, state->font[1], "WORK IN PROGRESS", 
+    current_width / 2, 0, 1.0f, (float[4])SG_WHITE, TEXT_ANCHOR_TOP_CENTER);
 
     // End frame and present
     sgp_flush();
@@ -190,7 +189,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
     AppState* state = (AppState*) appstate;
     // Cleanup
     printf("Shutting down application...\n");
-    renderer_shutdown(&renderer_ctx);
+    renderer_shutdown(state);
     window_shutdown(state->window);
 
     printf("Application shut down successfully\n");

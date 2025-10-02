@@ -137,12 +137,6 @@ void renderer_resize(AppState* state, int width, int height) {
     d3d11_create_render_targets();
 }
 
-void renderer_set_clear_color(float r, float g, float b, float a) {
-    // D3D11 clears happen in the pass action, 
-    // this function can be used to update clear values if needed
-    (void)r; (void)g; (void)b; (void)a;
-}
-
 sg_swapchain get_swapchain(AppState* state) {
     return (sg_swapchain){
         .width = state->width,
