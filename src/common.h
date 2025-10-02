@@ -2,6 +2,8 @@
 #define COMMON_H
 
 #include <SDL3/SDL.h>
+#include <flecs.h>
+
 
 typedef struct AppState {
     SDL_Window* window;
@@ -11,6 +13,7 @@ typedef struct AppState {
     float current_tick;
     float delta_time;
     int font[5];
+    ecs_world_t *ecs;
   } AppState;
 
 #endif

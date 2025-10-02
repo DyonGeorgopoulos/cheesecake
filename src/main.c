@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -10,15 +11,28 @@
 #include "font_rendering.h"
 #include "renderer.h"
 #include "shader.glsl.h"
+
+// flecs
+#include <flecs.h>
+
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 720
 #define WINDOW_TITLE "Sokol + SDL3 Demo"
 #define TARGET_FPS 240 
 #define TARGET_FRAME_TIME (1000 / TARGET_FPS)
 
+
+typedef struct {
+    float x, y;
+} Position;
+
+static float ecs_accumulator = 0.0f;
+const float ECS_UPDATE_INTERVAL = 0.6f;
+
 static sg_shader g_shader;
 sg_pipeline g_pipeline;
 text_renderer_t renderer;
+ ecs_query_t *q;
 
 // FPS counter state
 typedef struct {
@@ -29,6 +43,15 @@ typedef struct {
 } fps_counter_t;
 
 static fps_counter_t fps_counter = {0};
+
+void Move(ecs_iter_t* it) {
+    Position *p = ecs_field(it, Position, 0);
+
+    for (int i=0; i < it->count; i++) {
+        p[i].x = (float)(rand() % 1280);
+        p[i].y = (float)(rand() % 720);
+    }
+}
 
 void fps_counter_update(AppState* state) {
     fps_counter.frame_count++;
@@ -55,8 +78,28 @@ void app_wait_for_next_frame(void *appstate) {
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     (void)argc;
     (void)argv;
+    srand(time(NULL));
     AppState* state = SDL_malloc(sizeof(AppState));
     *appstate = state;
+
+    // Initialise ecs_world
+    state->ecs = ecs_init();
+
+    // initalise an entity
+    ECS_COMPONENT(state->ecs, Position);
+
+    q = ecs_query(state->ecs, {
+        .terms = {
+            { .id = ecs_id(Position) },
+        },
+
+        // QueryCache Auto automatically caches all terms that can be cached.
+        .cache_kind = EcsQueryCacheAuto
+    });
+
+    ECS_SYSTEM(state->ecs, Move, EcsOnUpdate, Position);
+
+    ecs_entity_t e = ecs_insert(state->ecs, ecs_value(Position, {10, 20}));
 
     printf("Starting %s...\n", WINDOW_TITLE);
 
@@ -113,6 +156,20 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     state->current_tick = SDL_GetTicks();
     state->delta_time = (state->current_tick - state->last_tick) / 1000.0f;
 
+    ecs_accumulator += state->delta_time;
+
+    // 0.6 tick system. Run game update code in here.
+    if (ecs_accumulator >= ECS_UPDATE_INTERVAL) {
+        ecs_progress(state->ecs, ecs_accumulator);
+        ecs_accumulator = 0.0f;
+    }
+
+    ecs_iter_t it = ecs_query_iter(state->ecs, q);
+    Position* p = NULL;
+    while (ecs_query_next(&it)) {
+        p = ecs_field(&it, Position, 0);
+    }
+
     // Update FPS counter
     fps_counter_update(state);
 
@@ -131,7 +188,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     sgp_begin(current_width, current_height);
     sgp_viewport(0, 0, current_width, current_height);
     sgp_set_color(0.2f, 0.3f, 0.5f, 1);
-    sgp_draw_filled_rect(0, 0, current_width/2, current_height/2);
+    sgp_draw_filled_rect(p[0].x, p[0].y, 50, 50);
 
 
     // // Draw FPS counter in top-left corner
