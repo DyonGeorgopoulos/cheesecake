@@ -10,6 +10,7 @@
 
 #include "font_rendering.h"
 #include "renderer.h"
+#include "systems/rendering_system.h"
 #include "shader.glsl.h"
 
 // flecs
@@ -21,10 +22,8 @@
 #define TARGET_FPS 240 
 #define TARGET_FRAME_TIME (1000 / TARGET_FPS)
 
-
-typedef struct {
-    float x, y;
-} Position;
+// every component, will be in a file that has it's queries in it's init function, that are stored in the header. 
+// that way system can just call into the queries to get the data they need every update.
 
 static float ecs_accumulator = 0.0f;
 const float ECS_UPDATE_INTERVAL = 0.6f;
@@ -32,17 +31,7 @@ const float ECS_UPDATE_INTERVAL = 0.6f;
 static sg_shader g_shader;
 sg_pipeline g_pipeline;
 text_renderer_t renderer;
- ecs_query_t *q;
-
-// FPS counter state
-typedef struct {
-    int frame_count;
-    Uint64 last_fps_update;
-    float current_fps;
-    char fps_text[32];
-} fps_counter_t;
-
-static fps_counter_t fps_counter = {0};
+ecs_query_t *q;
 
 void Move(ecs_iter_t* it) {
     Position *p = ecs_field(it, Position, 0);
@@ -50,21 +39,6 @@ void Move(ecs_iter_t* it) {
     for (int i=0; i < it->count; i++) {
         p[i].x = (float)(rand() % 1280);
         p[i].y = (float)(rand() % 720);
-    }
-}
-
-void fps_counter_update(AppState* state) {
-    fps_counter.frame_count++;
-    
-    // Update FPS display every second (1000ms)
-    Uint64 elapsed = state->current_tick - fps_counter.last_fps_update;
-    if (elapsed >= 1000) {
-        fps_counter.current_fps = (float)fps_counter.frame_count / (elapsed / 1000.0f);
-        snprintf(fps_counter.fps_text, sizeof(fps_counter.fps_text), 
-                 "FPS: %.0f", fps_counter.current_fps);
-        
-        fps_counter.frame_count = 0;
-        fps_counter.last_fps_update = state->current_tick;
     }
 }
 
@@ -84,22 +58,34 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
     // Initialise ecs_world
     state->ecs = ecs_init();
+    rendering_components_register(state->ecs);
 
-    // initalise an entity
-    ECS_COMPONENT(state->ecs, Position);
-
-    q = ecs_query(state->ecs, {
+    state->renderer.queries.shapes = ecs_query(state->ecs, {
         .terms = {
             { .id = ecs_id(Position) },
-        },
-
-        // QueryCache Auto automatically caches all terms that can be cached.
-        .cache_kind = EcsQueryCacheAuto
+            { .id = ecs_id(Colour) }
+        }
     });
 
     ECS_SYSTEM(state->ecs, Move, EcsOnUpdate, Position);
+    ecs_entity_t player = ecs_new(state->ecs);
+    ecs_entity_t player2 = ecs_new(state->ecs);
+    ecs_set(state->ecs, player, Position, {10.0f, 20.0f});
+    ecs_set(state->ecs, player2, Position, {10.0f, 20.0f});
 
-    ecs_entity_t e = ecs_insert(state->ecs, ecs_value(Position, {10, 20}));
+    ecs_set(state->ecs, player, Colour, {
+        .r = 0.1f,
+        .g = 0.5f,
+        .b = 0.6f,
+        .a = 1,
+    });
+
+    ecs_set(state->ecs, player2, Colour, {
+        .r = 0.6f,
+        .g = 0.2f,
+        .b = 0.1f,
+        .a = 1,
+    });
 
     printf("Starting %s...\n", WINDOW_TITLE);
 
@@ -112,7 +98,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     printf("window first");
 
     // Initialize renderer
-    if (!renderer_init(state)) {
+    if (!renderer_initialize(state)) {
         fprintf(stderr, "Failed to  initialize renderer\n");
         window_shutdown(state->window);
         return -1;
@@ -120,23 +106,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
     printf("Application initialized successfully\n");
 
-    // create the shader
-    // initialise the shader
-    g_shader = sg_make_shader(sgp_program_shader_desc(sg_query_backend()));
-    if (sg_query_shader_state(g_shader) != SG_RESOURCESTATE_VALID)
-    {
-        fprintf(stderr, "failed to make custom pipeline shader\n");
-        exit(-1);
-    }
-    sgp_pipeline_desc pip_desc = {0};
-    pip_desc.shader = g_shader;
-    pip_desc.has_vs_color = true;
-    pip_desc.blend_mode = SGP_BLENDMODE_BLEND;
-    g_pipeline = sgp_make_pipeline(&pip_desc);
-
-
     // Initialise the text renderer
     text_renderer_init(&renderer, 1000);
+    state->renderer.text_renderer = &renderer;
     // load the font we want to use. 
     // TODO: Update state->font to be a hasmap that keymaps the fonts so they can be looked up.c 
     state->font[0] = text_renderer_load_font(&renderer, "assets/fonts/PxPlus_Toshiba.ttf", 16);
@@ -164,47 +136,12 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         ecs_accumulator = 0.0f;
     }
 
-    ecs_iter_t it = ecs_query_iter(state->ecs, q);
-    Position* p = NULL;
-    while (ecs_query_next(&it)) {
-        p = ecs_field(&it, Position, 0);
-    }
-
     // Update FPS counter
     fps_counter_update(state);
 
-    int current_width, current_height;
-    SDL_GetWindowSizeInPixels(state->window, &current_width, &current_height);
+    // draw the frame
+    renderer_draw_frame(state);
 
-    // Begin frame
-    renderer_begin_frame(state);
-
-    // Begin render pass
-    sg_pass pass = {.swapchain = renderer_get_swapchain(state)};
-    sg_begin_pass(&pass);
-
-    float ratio = current_width/(float)current_height;
-    sgp_set_pipeline(g_pipeline);
-    sgp_begin(current_width, current_height);
-    sgp_viewport(0, 0, current_width, current_height);
-    sgp_set_color(0.2f, 0.3f, 0.5f, 1);
-    sgp_draw_filled_rect(p[0].x, p[0].y, 50, 50);
-
-
-    // // Draw FPS counter in top-left corner
-    text_renderer_draw_text(&renderer, state->font[0], fps_counter.fps_text, 
-                            0, 0, 1.0f, (float[4])SG_WHITE, TEXT_ANCHOR_TOP_LEFT);
-
-    text_renderer_draw_text(&renderer, state->font[1], "WORK IN PROGRESS", 
-    current_width / 2, 0, 1.0f, (float[4])SG_WHITE, TEXT_ANCHOR_TOP_CENTER);
-
-    // End frame and present
-    sgp_flush();
-    sgp_end();
-
-    sg_end_pass();
-    sg_commit();
-    renderer_end_frame(state);
     app_wait_for_next_frame(appstate);
     return SDL_APP_CONTINUE;
 }

@@ -3,7 +3,27 @@
 
 #include <SDL3/SDL.h>
 #include <flecs.h>
+#include "font_rendering.h"
 
+
+typedef struct {
+    ecs_query_t *shapes;
+    ecs_query_t *background_tiles;
+    ecs_query_t *ground_entities;
+    ecs_query_t *sprites;
+    ecs_query_t *particles;
+    ecs_query_t *ui_elements;
+} RenderQueries;
+
+typedef struct {
+    RenderQueries queries;
+    text_renderer_t* text_renderer;
+    sg_shader sprite_shader;
+    sg_shader particle_shader;
+    sg_pipeline sprite_pipeline;
+    sg_pipeline particle_pipeline;
+    // other render state
+} Renderer;
 
 typedef struct AppState {
     SDL_Window* window;
@@ -13,7 +33,8 @@ typedef struct AppState {
     float current_tick;
     float delta_time;
     int font[5];
-    ecs_world_t *ecs;
+    Renderer renderer;
+    ecs_world_t* ecs;
   } AppState;
 
 #endif

@@ -152,6 +152,8 @@ set(SOURCES
     src/window.c
     src/font_rendering.c
     src/sokol.c
+    src/components/rendering.c
+    src/systems/rendering_system.c
 )
 
 # Platform-specific sources
@@ -178,6 +180,8 @@ add_dependencies(${PROJECT_NAME} compile_shaders)
 target_include_directories(${PROJECT_NAME} PRIVATE
     src
     src/backends
+    src/components
+    src/systems
     ${sokol_SOURCE_DIR}
 )
 
