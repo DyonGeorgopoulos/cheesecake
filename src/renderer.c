@@ -21,7 +21,6 @@ void fps_counter_update(AppState* state) {
     }
 }
 
-
 bool renderer_initialize(AppState* state) {
     if (!renderer_init(state)) {
         return false;

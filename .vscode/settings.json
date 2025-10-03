@@ -17,6 +17,7 @@
         "sokol_gp.h": "c",
         "numbers": "c",
         "time.h": "c",
-        "sdl_main.h": "c"
+        "sdl_main.h": "c",
+        "sprite_loader.h": "c"
     }
 }

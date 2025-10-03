@@ -72,6 +72,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(flecs)
 
+# cJSON
+FetchContent_Declare(
+    cJSON
+    GIT_REPOSITORY https://github.com/DaveGamble/cJSON.git
+    GIT_TAG master
+    GIT_SHALLOW TRUE
+)
+set(ENABLE_CJSON_TEST OFF CACHE BOOL "Disable cJSON tests")
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static library")
+set(ENABLE_CJSON_WERROR OFF CACHE BOOL "Disable warnings as errors for cJSON")
+FetchContent_MakeAvailable(cJSON)
+
 # Sokol
 FetchContent_Declare(
     sokol
@@ -145,6 +157,30 @@ compile_shader(
     ${CMAKE_CURRENT_SOURCE_DIR}/src/font.shader.glsl.h
 )
 
+# Collect all asset files
+file(GLOB_RECURSE ASSET_FILES
+    RELATIVE ${CMAKE_SOURCE_DIR}/assets
+    ${CMAKE_SOURCE_DIR}/assets/*
+)
+
+# Create custom commands for each asset file
+foreach(ASSET_FILE ${ASSET_FILES})
+    add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/assets/${ASSET_FILE}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_SOURCE_DIR}/assets/${ASSET_FILE}
+            ${CMAKE_BINARY_DIR}/assets/${ASSET_FILE}
+        DEPENDS ${CMAKE_SOURCE_DIR}/assets/${ASSET_FILE}
+        COMMENT "Copying asset: ${ASSET_FILE}"
+    )
+    list(APPEND COPIED_ASSETS ${CMAKE_BINARY_DIR}/assets/${ASSET_FILE})
+endforeach()
+
+# Create a target that depends on all copied assets
+add_custom_target(copy_assets ALL
+    DEPENDS ${COPIED_ASSETS}
+)
+
 # Source files
 set(SOURCES
     src/main.c
@@ -153,6 +189,7 @@ set(SOURCES
     src/font_rendering.c
     src/sokol.c
     src/components/rendering.c
+    src/util/sprite_loader.c
 )
 
 # Platform-specific sources
@@ -173,7 +210,7 @@ add_custom_target(compile_shaders ALL
         ${CMAKE_CURRENT_SOURCE_DIR}/src/font.shader.glsl.h
 )
 
-add_dependencies(${PROJECT_NAME} compile_shaders)
+add_dependencies(${PROJECT_NAME} compile_shaders copy_assets)
 
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -181,6 +218,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     src/backends
     src/components
     src/systems
+    src/util
     ${sokol_SOURCE_DIR}
 )
 
@@ -189,6 +227,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     SDL3::SDL3
     Freetype::Freetype
     flecs::flecs_static
+    cjson
 )
 
 # Platform-specific configurations
@@ -259,11 +298,3 @@ endif()
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(${PROJECT_NAME} PRIVATE DEBUG=1)
 endif()
-
-# Copy assets to build directory (runs at build time, not configure time)
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/assets
-        ${CMAKE_BINARY_DIR}/assets
-    COMMENT "Copying assets to build directory"
-)
