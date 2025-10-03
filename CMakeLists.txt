@@ -153,7 +153,6 @@ set(SOURCES
     src/font_rendering.c
     src/sokol.c
     src/components/rendering.c
-    src/systems/rendering_system.c
 )
 
 # Platform-specific sources

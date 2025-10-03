@@ -26,10 +26,6 @@ bool renderer_initialize(AppState* state) {
     if (!renderer_init(state)) {
         return false;
     }
-
-    // state->renderer.queries.background_tiles = ecs_query(ecs, {
-    //     .terms = {{ ecs_id(Position) }, { ecs_id(TileSprite) }}
-    // });
     
     state->renderer.queries.ground_entities = ecs_query(state->ecs, {
         .terms = {{ ecs_id(Position) }, { ecs_id(Colour) }},
@@ -38,14 +34,6 @@ bool renderer_initialize(AppState* state) {
     state->renderer.queries.sprites = ecs_query(state->ecs, {
         .terms = {{ ecs_id(Position) }, { ecs_id(Sprite) }, { ecs_id(Colour) }}
     });
-    
-    // state->renderer.queries.particles = ecs_query(ecs, {
-    //     .terms = {{ ecs_id(Position) }, { ecs_id(ParticleEffect) }}
-    // });
-    
-    // state->renderer.queries.ui_elements = ecs_query(ecs, {
-    //     .terms = {{ ecs_id(Position) }, { ecs_id(UIElement) }}
-    // });
 
 
     printf("creating shader");
@@ -94,7 +82,7 @@ void renderer_draw_frame(void* appstate) {
     // draw entities on ground when we start tracking the entities
     // draw_ground_entities(renderer->queries.ground_entities);
 
-    // draw sprites / shapes5
+    // draw sprites / shapes
     sgp_set_pipeline(state->renderer.sprite_pipeline);
     ecs_iter_t it = ecs_query_iter(state->ecs, state->renderer.queries.ground_entities);
      while (ecs_query_next(&it)) {

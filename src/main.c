@@ -10,7 +10,6 @@
 
 #include "font_rendering.h"
 #include "renderer.h"
-#include "systems/rendering_system.h"
 #include "shader.glsl.h"
 
 // flecs
