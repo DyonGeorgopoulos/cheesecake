@@ -9,21 +9,33 @@
 
 typedef struct {
     sg_image texture;
-    int width, height;
+    int row;
     int frame_count;
-    int origin_x, origin_y;
-    char name[128];
-} SpriteData;
+    float frame_time;
+    bool loop;
+} AnimationData;
 
 typedef struct {
-    SpriteData* sprites;
-    int count;
-    int capacity;
+    char name[32];              // "player"
+    int width, height;
+    float origin_x, origin_y;
+    float scale_x, scale_y;
+    char default_animation[32]; // "idle_left"
+    
+    // Animation lookup for this entity
+    AnimationData *animations;  // Array of animations
+    char **animation_names;     // Parallel array of names
+    int animation_count;
+} SpriteEntityData;
+
+typedef struct {
+    SpriteEntityData *entities;
+    int entity_count;
 } SpriteAtlas;
 
 bool sprite_atlas_init(SpriteAtlas* atlas);
 bool sprite_atlas_load(SpriteAtlas* atlas, const char* path);
-SpriteData* sprite_atlas_get(SpriteAtlas* atlas, const char* name); // gets the sprite data
+SpriteEntityData* sprite_atlas_get(SpriteAtlas* atlas, const char* name); // gets the sprite data
 void sprite_atlas_shutdown(SpriteAtlas* atlas);
 
 #endif

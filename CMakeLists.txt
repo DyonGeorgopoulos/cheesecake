@@ -194,6 +194,7 @@ set(SOURCES
     src/sokol.c
     src/components/rendering.c
     src/entities/entity_factory.c
+    src/systems/animation_system.c
     src/util/sprite_loader.c
     src/util/stb_impl.c
 )

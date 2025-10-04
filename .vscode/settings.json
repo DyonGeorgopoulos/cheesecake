@@ -23,6 +23,8 @@
         "chrono": "c",
         "text_encoding": "c",
         "typeinfo": "c",
-        "string": "c"
+        "string": "c",
+        "animation_system.h": "c",
+        "random": "c"
     }
 }

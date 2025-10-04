@@ -2,6 +2,7 @@
 #define RENDERING_H
 #include <flecs.h>
 #include "sokol_gfx.h"
+#include "util/sprite_loader.h"
 
 // Basic sprite rendering
 typedef struct {
@@ -15,7 +16,7 @@ typedef struct {
 // Where to draw it
 typedef struct {
     float x, y;
-} Position;
+} Position, Velocity;
 
 // Visual properties
 typedef struct {
@@ -29,6 +30,7 @@ typedef struct {
 
 // Animation state
 typedef struct {
+    char anim_name[64];
     int frame_count;
     int current_frame;
     float frame_time;       // Time per frame
@@ -47,6 +49,15 @@ typedef struct {
     float x, y;
 } RenderOffset;
 
+typedef struct {
+    SpriteEntityData *entity_data;
+} SpriteEntityRef;
+
+typedef struct {
+    char current_state[32];  // "idle", "walking", "jumping"
+    char desired_animation[64];
+} AnimationController;
+
 extern ECS_COMPONENT_DECLARE(Position);
 extern ECS_COMPONENT_DECLARE(Sprite);
 extern ECS_COMPONENT_DECLARE(Colour);
@@ -54,6 +65,9 @@ extern ECS_COMPONENT_DECLARE(SpriteAnimation);
 extern ECS_COMPONENT_DECLARE(RenderLayer);
 extern ECS_COMPONENT_DECLARE(UVCoords);
 extern ECS_COMPONENT_DECLARE(RenderOffset);
+extern ECS_COMPONENT_DECLARE(SpriteEntityRef);
+extern ECS_COMPONENT_DECLARE(AnimationController);
+extern ECS_COMPONENT_DECLARE(Velocity);
 
 void rendering_components_register(ecs_world_t *world);
 

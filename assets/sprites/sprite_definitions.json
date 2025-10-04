@@ -1,12 +1,81 @@
 {
-    "sprites": [
+"sprites": [
         {
             "name": "player",
-            "texture": "assets/sprites/walk.png",
-            "width": 32,
-            "height": 32,
+            "width": 64,
+            "height": 64,
             "origin_x": 16,
-            "origin_y": 16
+            "origin_y": 16,
+            "scale_x": 1.0,
+            "scale_y": 1.0,
+            "sheet_offset_x": 0,
+            "sheet_offset_y": 0,
+            "default_animation": "idle_left",
+            "animations": {
+                "walk_left": {
+                    "texture": "assets/sprites/walk.png",
+                    "row": 1,
+                    "frame_count": 12,
+                    "frame_time": 0.1,
+                    "loop": true
+                },
+                "walk_right": {
+                    "texture": "assets/sprites/walk.png",
+                    "row": 5,
+                    "frame_count": 12,
+                    "frame_time": 0.1,
+                    "loop": true
+                },
+                "walk_up": {
+                    "texture": "assets/sprites/walk.png",
+                    "row": 7,
+                    "frame_count": 12,
+                    "frame_time": 0.1,
+                    "loop": true
+                },
+                "walk_down": {
+                    "texture": "assets/sprites/walk.png",
+                    "row": 3,
+                    "frame_count": 12,
+                    "frame_time": 0.1,
+                    "loop": true
+                },
+                "walk_up_left": {
+                    "texture": "assets/sprites/walk.png",
+                    "row": 0,
+                    "frame_count": 12,
+                    "frame_time": 0.1,
+                    "loop": true
+                },
+                "walk_up_right": {
+                    "texture": "assets/sprites/walk.png",
+                    "row": 6,
+                    "frame_count": 12,
+                    "frame_time": 0.1,
+                    "loop": true
+                },
+                "walk_down_right": {
+                    "texture": "assets/sprites/walk.png",
+                    "row": 4,
+                    "frame_count": 12,
+                    "frame_time": 0.1,
+                    "loop": true
+                },
+                "walk_down_left": {
+                    "texture": "assets/sprites/walk.png",
+                    "row": 2,
+                    "frame_count": 12,
+                    "frame_time": 0.1,
+                    "loop": true
+                },
+                "idle_left": {
+                    "texture": "assets/sprites/idle.png",
+                    "row": 0,
+                    "frame_count": 12,
+                    "frame_time": 0.1,
+                    "loop": true
+                }
+            }
         }
     ]
 }

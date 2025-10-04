@@ -1,0 +1,54 @@
+For a future-proof animation system with hitboxes and more complex state, use a data-driven approach where animation metadata lives alongside sprite data:
+
+
+```
+Extended sprite definition structure:
+typedef struct {
+    int frame_count;
+    float frame_time;
+    bool loop;
+    sg_image texture;
+    int row;
+    
+    // Animation metadata
+    Hitbox *hitboxes;        // Per-frame hitboxes
+    Hurtbox *hurtboxes;      // Per-frame hurtboxes
+    ActionPoint *action_points; // Sword tip position, muzzle flash point, etc.
+    char next_animation[64]; // Auto-transition when done
+} AnimationData;
+
+typedef struct {
+    char name[32];
+    AnimationData *animations;
+    char **animation_names;
+    int animation_count;
+    // ... other fields
+} SpriteEntityData;
+```
+
+
+## generic animation selection
+```
+typedef struct {
+    char animation_params[128];  // JSON string or key-value pairs
+} AnimationRequest;
+
+// System that converts requests to animation names
+void AnimationRequestSystem(ecs_iter_t *it) {
+    AnimationRequest *request = ecs_field(it, AnimationRequest, 0);
+    SpriteAnimation *anim = ecs_field(it, SpriteAnimation, 1);
+    SpriteEntityRef *ref = ecs_field(it, SpriteEntityRef, 2);
+    
+    for (int i = 0; i < it->count; i++) {
+        // Parse params: "state=moving,facing=right,onground=true"
+        // Build animation name using entity-specific rules
+        const char *target = resolve_animation_name(
+            ref[i].entity_data, 
+            request[i].animation_params
+        );
+        
+        if (strcmp(target, anim[i].anim_name) != 0) {
+            set_sprite_animation(it->world, it->entities[i], target);
+        }
+    }
+```

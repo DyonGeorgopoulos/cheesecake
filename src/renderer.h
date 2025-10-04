@@ -44,7 +44,8 @@ void renderer_resize(void* appstate, int width, int height);
 void fps_counter_update(AppState* state);
 bool renderer_initialize(AppState* state);
 void renderer_draw_frame(void* appstate);
-
+void update_animations(AppState *state, float dt);
+void set_sprite_animation(ecs_world_t *world, ecs_entity_t entity, const char *anim_name);
 sg_swapchain renderer_get_swapchain(AppState* state);
 sg_swapchain get_swapchain(AppState* state);
 void load_spritesheet(void* appstate, char* file); // loads a spritesheet

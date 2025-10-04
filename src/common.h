@@ -7,12 +7,17 @@
 #include "util/sprite_loader.h"
 
 typedef struct {
+    bool left, right, up, down;
+} InputState;
+
+typedef struct {
     ecs_query_t *shapes;
     ecs_query_t *background_tiles;
     ecs_query_t *ground_entities;
     ecs_query_t *sprites;
     ecs_query_t *particles;
     ecs_query_t *ui_elements;
+    ecs_query_t *animations;
 } RenderQueries;
 
 typedef struct {
@@ -37,6 +42,7 @@ typedef struct AppState {
     ecs_world_t* ecs;
     SpriteAtlas sprite_atlas;
     float ecs_accumulator;
+    InputState input;
   } AppState;
 
 #endif

@@ -12,6 +12,7 @@
 #include "renderer.h"
 #include "shader.glsl.h"
 #include "entities/entity_factory.h"
+#include "systems/animation_system.h"
 
 // flecs
 #include <flecs.h>
@@ -30,6 +31,7 @@ static sg_shader g_shader;
 sg_pipeline g_pipeline;
 text_renderer_t renderer;
 ecs_query_t *q;
+ecs_entity_t player;
 
 void Move(ecs_iter_t* it) {
     Position *p = ecs_field(it, Position, 0);
@@ -66,26 +68,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
         }
     });
 
-    ECS_SYSTEM(state->ecs, Move, EcsOnUpdate, Position);
-    ecs_entity_t player = ecs_new(state->ecs);
-    ecs_entity_t player2 = ecs_new(state->ecs);
-    ecs_set(state->ecs, player, Position, {10.0f, 20.0f});
-    ecs_set(state->ecs, player2, Position, {10.0f, 20.0f});
-
-    ecs_set(state->ecs, player, Colour, {
-        .r = 0.1f,
-        .g = 0.5f,
-        .b = 0.6f,
-        .a = 1,
-    });
-
-    ecs_set(state->ecs, player2, Colour, {
-        .r = 0.6f,
-        .g = 0.2f,
-        .b = 0.1f,
-        .a = 1,
-    });
-
     printf("Starting %s...\n", WINDOW_TITLE);
 
     // Initialize window
@@ -110,7 +92,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     sprite_atlas_load(&state->sprite_atlas, "assets/sprites/sprite_definitions.json");
 
     // spawn a player entity
-    entity_factory_spawn_sprite(state, "player", 50, 50);
+    player = entity_factory_spawn_sprite(state, "player", 200, 200);
+    entity_factory_spawn_sprite(state, "player", 150, 200);
     // Initialise the text renderer
     text_renderer_init(&renderer, 1000);
     state->renderer.text_renderer = &renderer;
@@ -141,6 +124,22 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         state->ecs_accumulator = 0.0f;
     }
 
+    Velocity* vel = ecs_get_mut(state->ecs, player, Velocity);
+    vel->x = 0;
+    if (state->input.right) vel->x = 3;
+    if (state->input.left) vel->x = -3;
+
+    vel->y = 0;
+    if (state->input.up) vel->y = -3;
+    if (state->input.down) vel->y = 3;
+
+    // Then let a movement system apply velocity every frame
+    Position* pos = ecs_get_mut(state->ecs, player, Position);
+    pos->x += vel->x * state->delta_time * 60;  // Scale by delta time
+    pos->y += vel->y * state->delta_time * 60;  // Scale by delta time
+
+    // Update animations
+    update_animations(state, state->delta_time);
     // Update FPS counter
     fps_counter_update(state);
 
@@ -158,7 +157,6 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
         case SDL_EVENT_QUIT:
             return SDL_APP_SUCCESS;
             break;
-            
         case SDL_EVENT_WINDOW_RESIZED:
             int current_width, current_height;
             SDL_GetWindowSizeInPixels(state->window, &current_width, &current_height);
@@ -166,13 +164,20 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
                 renderer_resize(state, current_width, current_height);
             }
             break;
-            
         case SDL_EVENT_KEY_DOWN:
-            if (event->key.key == SDLK_ESCAPE) {
-                return SDL_APP_SUCCESS;
-            }
-            break;
-            
+            if (event->key.key == SDLK_ESCAPE) return SDL_APP_SUCCESS;
+            if (event->key.key == SDLK_LEFT) state->input.left = true;
+            if (event->key.key == SDLK_RIGHT) state->input.right = true;
+            if (event->key.key == SDLK_UP) state->input.up = true;
+            if (event->key.key == SDLK_DOWN) state->input.down = true;
+        break;
+
+    case SDL_EVENT_KEY_UP:
+        if (event->key.key == SDLK_LEFT) state->input.left = false;
+        if (event->key.key == SDLK_RIGHT) state->input.right = false;
+        if (event->key.key == SDLK_UP) state->input.up = false;
+        if (event->key.key == SDLK_DOWN) state->input.down = false;
+        break;
         default:
             break;
     }
