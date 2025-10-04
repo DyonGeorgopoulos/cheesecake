@@ -11,7 +11,7 @@ typedef struct {
     sg_image texture;
     int width, height;
     int frame_count;
-    float origin_x, origin_y;
+    int origin_x, origin_y;
     char name[128];
 } SpriteData;
 

@@ -11,6 +11,7 @@
 #include "font_rendering.h"
 #include "renderer.h"
 #include "shader.glsl.h"
+#include "entities/entity_factory.h"
 
 // flecs
 #include <flecs.h>
@@ -85,9 +86,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
         .a = 1,
     });
 
-    // Initialise the sprite system
-    sprite_atlas_init(&state->sprite_atlas);
-    sprite_atlas_load(&state->sprite_atlas, "assets/sprites/sprite_definitions.json");
     printf("Starting %s...\n", WINDOW_TITLE);
 
     // Initialize window
@@ -107,6 +105,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
     printf("Application initialized successfully\n");
 
+    // Initialise the sprite system
+    sprite_atlas_init(&state->sprite_atlas);
+    sprite_atlas_load(&state->sprite_atlas, "assets/sprites/sprite_definitions.json");
+
+    // spawn a player entity
+    entity_factory_spawn_sprite(state, "player", 50, 50);
     // Initialise the text renderer
     text_renderer_init(&renderer, 1000);
     state->renderer.text_renderer = &renderer;
@@ -131,12 +135,8 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
     state->ecs_accumulator += state->delta_time;
 
-    printf("Delta: %f, Accumulator: %f, Threshold: %f\n", 
-       state->delta_time, state->ecs_accumulator, ECS_UPDATE_INTERVAL);
-
     // 0.6 tick system. Run game update code in here.
     if (state->ecs_accumulator >= ECS_UPDATE_INTERVAL) {
-        printf("RUNNING ECS PROGRESS\n");
         ecs_progress(state->ecs, state->ecs_accumulator);
         state->ecs_accumulator = 0.0f;
     }

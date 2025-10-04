@@ -22,6 +22,7 @@
         "stdlib.h": "c",
         "chrono": "c",
         "text_encoding": "c",
-        "typeinfo": "c"
+        "typeinfo": "c",
+        "string": "c"
     }
 }

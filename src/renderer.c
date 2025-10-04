@@ -31,7 +31,7 @@ bool renderer_initialize(AppState* state) {
     });
     
     state->renderer.queries.sprites = ecs_query(state->ecs, {
-        .terms = {{ ecs_id(Position) }, { ecs_id(Sprite) }, { ecs_id(Colour) }}
+        .terms = {{ ecs_id(Position) }, { ecs_id(Sprite) }}
     });
 
 
@@ -91,6 +91,26 @@ void renderer_draw_frame(void* appstate) {
         for (int i = 0; i < it.count; i++) {
             sgp_set_color(col[i].r, col[i].g, col[i].b, col[i].a);
             sgp_draw_filled_rect(pos[i].x, pos[i].y, 50, 50);
+        }
+    }
+
+    it = ecs_query_iter(state->ecs, state->renderer.queries.sprites);
+     while (ecs_query_next(&it)) {
+        Position *pos = ecs_field(&it, Position, 0);
+        Sprite* spr = ecs_field(&it, Sprite, 1);
+        
+        for (int i = 0; i < it.count; i++) {
+            //sgp_set_color(col[i].r, col[i].g, col[i].b, col[i].a);
+            sgp_set_image(0, spr[i].texture);
+
+            sgp_push_transform();
+            sgp_translate(pos[i].x, pos[i].y);
+            sgp_rotate(spr[i].rotation);
+            sgp_scale(spr[i].scale_x, spr[i].scale_y);
+            sgp_rect src = {spr[i].src_x, spr[i].src_y, spr[i].src_w, spr[i].src_h};
+            sgp_rect dst = {0, 0, spr[i].src_w, spr[i].src_h};
+            sgp_draw_textured_rect(0, dst, src);
+            sgp_pop_transform();
         }
     }
 

@@ -2,8 +2,11 @@
     "sprites": [
         {
             "name": "player",
+            "texture": "assets/sprites/walk.png",
             "width": 32,
-            "height": 32
+            "height": 32,
+            "origin_x": 16,
+            "origin_y": 16
         }
     ]
 }

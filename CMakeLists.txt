@@ -193,6 +193,7 @@ set(SOURCES
     src/font_rendering.c
     src/sokol.c
     src/components/rendering.c
+    src/entities/entity_factory.c
     src/util/sprite_loader.c
     src/util/stb_impl.c
 )

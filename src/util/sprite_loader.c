@@ -75,10 +75,50 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
             goto end;
         }
 
+        cJSON* texture = cJSON_GetObjectItemCaseSensitive(sprite, "texture");
+        if (!cJSON_IsString(texture)) {
+                    goto end;
+        }
+        
+        cJSON* width = cJSON_GetObjectItemCaseSensitive(sprite, "width");
+        cJSON* height = cJSON_GetObjectItemCaseSensitive(sprite, "height");
+
+        if (!cJSON_IsNumber(width) || !cJSON_IsNumber(height)) {
+            goto end;
+        }
+
+        cJSON* origin_x = cJSON_GetObjectItemCaseSensitive(sprite, "origin_x");
+        cJSON* origin_y = cJSON_GetObjectItemCaseSensitive(sprite, "origin_y");
+
+        if (!cJSON_IsNumber(origin_x) || !cJSON_IsNumber(origin_y)) {
+                    goto end;
+        }
         strncpy(data->name, name->valuestring, sizeof(data->name) - 1);
-        // data->texture = load_texture(texture_path)
+        data->texture = load_texture(texture->valuestring);
+        data->width = width->valueint;
+        data->height = height->valueint;
+        data->origin_x = origin_x->valueint;
+        data->origin_y = origin_y->valueint;
+
+        if (sg_query_image_state(data->texture) == SG_RESOURCESTATE_VALID) {
+            atlas->count++;
+            printf("Loaded sprite: %s (%dx%d)\n", name->valuestring, width->valueint, height->valueint);
+        } else {
+            fprintf(stderr, "Failed to create texture for: %s\n", name->valuestring);
+        }
     }
 end:
     cJSON_Delete(json);    
     return true;
+}
+
+SpriteData* sprite_atlas_get(SpriteAtlas* atlas, const char* name) {
+    for (int i = 0; i < atlas->count; i++) {
+        if (strcmp(atlas->sprites[i].name, name) == 0) {
+            return &atlas->sprites[i];
+        }
+    }
+
+    // this could be a hashmap for o(1) lookup
+    return NULL;
 }
