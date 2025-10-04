@@ -23,8 +23,6 @@
 
 // every component, will be in a file that has it's queries in it's init function, that are stored in the header. 
 // that way system can just call into the queries to get the data they need every update.
-
-static float ecs_accumulator = 0.0f;
 const float ECS_UPDATE_INTERVAL = 0.6f;
 
 static sg_shader g_shader;
@@ -52,7 +50,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     (void)argc;
     (void)argv;
     srand(time(NULL));
-    AppState* state = SDL_malloc(sizeof(AppState));
+
+    AppState* state = SDL_calloc(1, sizeof(AppState));
     *appstate = state;
 
     // Initialise ecs_world
@@ -86,6 +85,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
         .a = 1,
     });
 
+    // Initialise the sprite system
+    sprite_atlas_init(&state->sprite_atlas);
+    sprite_atlas_load(&state->sprite_atlas, "assets/sprites/sprite_definitions.json");
     printf("Starting %s...\n", WINDOW_TITLE);
 
     // Initialize window
@@ -127,12 +129,16 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     state->current_tick = SDL_GetTicks();
     state->delta_time = (state->current_tick - state->last_tick) / 1000.0f;
 
-    ecs_accumulator += state->delta_time;
+    state->ecs_accumulator += state->delta_time;
+
+    printf("Delta: %f, Accumulator: %f, Threshold: %f\n", 
+       state->delta_time, state->ecs_accumulator, ECS_UPDATE_INTERVAL);
 
     // 0.6 tick system. Run game update code in here.
-    if (ecs_accumulator >= ECS_UPDATE_INTERVAL) {
-        ecs_progress(state->ecs, ecs_accumulator);
-        ecs_accumulator = 0.0f;
+    if (state->ecs_accumulator >= ECS_UPDATE_INTERVAL) {
+        printf("RUNNING ECS PROGRESS\n");
+        ecs_progress(state->ecs, state->ecs_accumulator);
+        state->ecs_accumulator = 0.0f;
     }
 
     // Update FPS counter

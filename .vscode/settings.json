@@ -18,6 +18,10 @@
         "numbers": "c",
         "time.h": "c",
         "sdl_main.h": "c",
-        "sprite_loader.h": "c"
+        "sprite_loader.h": "c",
+        "stdlib.h": "c",
+        "chrono": "c",
+        "text_encoding": "c",
+        "typeinfo": "c"
     }
 }

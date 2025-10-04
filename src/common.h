@@ -4,7 +4,7 @@
 #include <SDL3/SDL.h>
 #include <flecs.h>
 #include "font_rendering.h"
-
+#include "util/sprite_loader.h"
 
 typedef struct {
     ecs_query_t *shapes;
@@ -35,6 +35,8 @@ typedef struct AppState {
     int font[5];
     Renderer renderer;
     ecs_world_t* ecs;
+    SpriteAtlas sprite_atlas;
+    float ecs_accumulator;
   } AppState;
 
 #endif

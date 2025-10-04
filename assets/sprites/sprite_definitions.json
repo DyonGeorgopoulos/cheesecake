@@ -1,0 +1,9 @@
+{
+    "sprites": [
+        {
+            "name": "player",
+            "width": 32,
+            "height": 32
+        }
+    ]
+}

@@ -21,6 +21,15 @@
                 }
             ],
             "preLaunchTask": "build"
-        }
+        },
+        {
+            "name": "Run Cheesecake (No Debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Cheesecake.exe",
+            "cwd": "${workspaceFolder}/build",
+            "preLaunchTask": "build",
+            "externalConsole": false
+}
     ]
 }

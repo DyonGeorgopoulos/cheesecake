@@ -73,16 +73,20 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(flecs)
 
 # cJSON
+set(ENABLE_CJSON_TEST OFF CACHE BOOL "Disable cJSON tests")
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static library")
+
 FetchContent_Declare(
     cJSON
     GIT_REPOSITORY https://github.com/DaveGamble/cJSON.git
-    GIT_TAG master
-    GIT_SHALLOW TRUE
+    GIT_TAG v1.7.18
 )
-set(ENABLE_CJSON_TEST OFF CACHE BOOL "Disable cJSON tests")
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static library")
-set(ENABLE_CJSON_WERROR OFF CACHE BOOL "Disable warnings as errors for cJSON")
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=used-but-marked-unused -Wno-used-but-marked-unused")
 FetchContent_MakeAvailable(cJSON)
+
+# Get cJSON source directory
+FetchContent_GetProperties(cJSON SOURCE_DIR cJSON_SOURCE_DIR)
 
 # Sokol
 FetchContent_Declare(
@@ -190,6 +194,7 @@ set(SOURCES
     src/sokol.c
     src/components/rendering.c
     src/util/sprite_loader.c
+    src/util/stb_impl.c
 )
 
 # Platform-specific sources
@@ -220,6 +225,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     src/systems
     src/util
     ${sokol_SOURCE_DIR}
+    ${cJSON_SOURCE_DIR}
 )
 
 # Link libraries
