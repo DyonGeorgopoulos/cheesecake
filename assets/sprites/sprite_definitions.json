@@ -70,7 +70,7 @@
                 },
                 "idle_left": {
                     "texture": "assets/sprites/idle.png",
-                    "row": 0,
+                    "row": 1,
                     "frame_count": 12,
                     "frame_time": 0.1,
                     "loop": true
