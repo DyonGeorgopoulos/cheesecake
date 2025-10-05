@@ -1,5 +1,5 @@
 {
-"sprites": [
+    "sprites": [
         {
             "name": "player",
             "width": 64,
@@ -74,7 +74,66 @@
                     "frame_count": 12,
                     "frame_time": 0.1,
                     "loop": true
+                },
+                "idle_right": {
+                    "texture": "assets/sprites/idle.png",
+                    "row": 5,
+                    "frame_count": 12,
+                    "frame_time": 0.1,
+                    "loop": true
                 }
+            },
+            "animation_graph": {
+                "transitions": [
+                    {
+                        "from": "idle_left",
+                        "to": "walk_left",
+                        "condition": "is_moving_left",
+                        "priority": 1
+                    },
+                    {
+                        "from": "idle_left",
+                        "to": "walk_right",
+                        "condition": "is_moving_right",
+                        "priority": 1
+                    },
+                    {
+                        "from": "walk_left",
+                        "to": "idle_left",
+                        "condition": "is_idle",
+                        "priority": 1
+                    },
+                    {
+                        "from": "walk_left",
+                        "to": "walk_right",
+                        "condition": "is_moving_right",
+                        "priority": 1
+                    },
+                    {
+                        "from": "idle_right",
+                        "to": "walk_right",
+                        "condition": "is_moving_right",
+                        "priority": 1
+                    },
+                    {
+                        "from": "idle_right",
+                        "to": "walk_left",
+                        "condition": "is_moving_left",
+                        "priority": 1
+                    },
+                    {
+                        "from": "walk_right",
+                        "to": "idle_right",
+                        "condition": "is_idle",
+                        "priority": 1
+                    },
+                    {
+                        "from": "walk_right",
+                        "to": "walk_left",
+                        "condition": "is_moving_left",
+                        "priority": 1
+                    }
+                ]
             }
         }
     ]

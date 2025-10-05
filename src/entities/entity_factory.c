@@ -21,7 +21,8 @@ ecs_entity_t entity_factory_spawn_sprite(AppState* state, const char* sprite_nam
     }
     
     AnimationData *anim = &entity_data->animations[default_anim_idx];
-    
+
+
     // Create entity
     ecs_entity_t e = ecs_new(state->ecs);
     
@@ -67,6 +68,12 @@ ecs_entity_t entity_factory_spawn_sprite(AppState* state, const char* sprite_nam
     ecs_set_ptr(state->ecs, e, SpriteEntityRef, &(SpriteEntityRef){
         .entity_data = entity_data
     });
+    
+        if (entity_data && entity_data->animation_graph) {
+        ecs_set_ptr(state->ecs, e, AnimationGraphComponent, &(AnimationGraphComponent){
+            .graph = entity_data->animation_graph
+        });
+    }
     
     return e;
 }

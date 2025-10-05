@@ -155,6 +155,42 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
             
             anim = anim->next;
         }
+
+        cJSON *graph_json = cJSON_GetObjectItemCaseSensitive(sprite, "animation_graph");
+        if (graph_json) {
+            cJSON *transitions_json = cJSON_GetObjectItemCaseSensitive(graph_json, "transitions");
+            if (cJSON_IsArray(transitions_json)) {
+                int trans_count = cJSON_GetArraySize(transitions_json);
+                
+                entity->animation_graph = malloc(sizeof(AnimationGraph));
+                entity->animation_graph->transition_count = trans_count;
+                entity->animation_graph->transitions = malloc(trans_count * sizeof(AnimationTransition));
+                
+                cJSON *trans = NULL;
+                int idx = 0;
+                cJSON_ArrayForEach(trans, transitions_json) {
+                    cJSON *from = cJSON_GetObjectItemCaseSensitive(trans, "from");
+                    cJSON *to = cJSON_GetObjectItemCaseSensitive(trans, "to");
+                    cJSON *condition = cJSON_GetObjectItemCaseSensitive(trans, "condition");
+                    cJSON *priority = cJSON_GetObjectItemCaseSensitive(trans, "priority");
+                    
+                    if (cJSON_IsString(from) && cJSON_IsString(to) && cJSON_IsString(condition)) {
+                        strncpy(entity->animation_graph->transitions[idx].from, 
+                            from->valuestring, 63);
+                        strncpy(entity->animation_graph->transitions[idx].to, 
+                            to->valuestring, 63);
+                        entity->animation_graph->transitions[idx].condition = 
+                            lookup_condition_function(condition->valuestring);
+                        entity->animation_graph->transitions[idx].priority = 
+                            cJSON_IsNumber(priority) ? priority->valueint : 1;
+                        idx++;
+                    }
+                }
+                entity->animation_graph->transition_count = idx;
+            }
+            } else {
+                entity->animation_graph = NULL;
+            }
         
         atlas->entity_count++;
     }

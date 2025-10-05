@@ -25,6 +25,7 @@
         "typeinfo": "c",
         "string": "c",
         "animation_system.h": "c",
-        "random": "c"
+        "random": "c",
+        "vector": "c"
     }
 }

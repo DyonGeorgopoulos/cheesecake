@@ -18,6 +18,7 @@ typedef struct {
     ecs_query_t *particles;
     ecs_query_t *ui_elements;
     ecs_query_t *animations;
+    ecs_query_t *animation_graphs;
 } RenderQueries;
 
 typedef struct {

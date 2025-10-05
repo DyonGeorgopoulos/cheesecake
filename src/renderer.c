@@ -43,6 +43,12 @@ bool renderer_initialize(AppState* state) {
                 }
     });
 
+    state->renderer.queries.animation_graphs = ecs_query(state->ecs, {
+        .terms = {{ ecs_id(SpriteAnimation)},
+                  { ecs_id(AnimationGraphComponent)}
+                }
+    });
+
     printf("creating shader");
     // Initialise shaders and pipelines here
     state->renderer.sprite_shader = sg_make_shader(sgp_program_shader_desc(sg_query_backend()));
@@ -150,37 +156,6 @@ void update_animations(AppState *state, float dt) {
         SpriteEntityRef *entity_ref = ecs_field(&it, SpriteEntityRef, 2);
         AnimationController  *ctrl = ecs_field(&it, AnimationController , 3);
         Velocity *vel = ecs_field(&it, Velocity, 4);
-        
-        // this is only for player animations, i'll need to fix for different objects
-        //For a future-proof animation system with hitboxes and more complex state, use a data-driven approach where animation metadata lives alongside sprite data:
-        // see notes.txt
-        for (int i = 0; i < it.count; i++) {
-            // Determine desired animation based on state
-            if (vel[i].x < 0 && vel[i].y < 0) {
-                strcpy(ctrl[i].desired_animation, "walk_up_left");
-            } else if (vel[i].x > 0 && vel[i].y < 0) {
-                strcpy(ctrl[i].desired_animation, "walk_up_right");
-            } else if (vel[i].x > 0 && vel[i].y > 0) {
-                strcpy(ctrl[i].desired_animation, "walk_down_right");
-            } else if (vel[i].x < 0 && vel[i].y > 0) {
-                strcpy(ctrl[i].desired_animation, "walk_down_left");
-            } else if (vel[i].x > 0) {
-                strcpy(ctrl[i].desired_animation, "walk_right");
-            } else if (vel[i].x < 0) {
-                strcpy(ctrl[i].desired_animation, "walk_left");
-            } else if (vel[i].y > 0) {
-                strcpy(ctrl[i].desired_animation, "walk_down");
-            } else if (vel[i].y < 0) {
-                strcpy(ctrl[i].desired_animation, "walk_up");
-            } else {
-                strcpy(ctrl[i].desired_animation, "idle_left");
-            }
-            
-            // Only change if different
-            if (strcmp(ctrl[i].desired_animation, anim[i].anim_name) != 0) {
-                set_sprite_animation(it.world, it.entities[i], ctrl[i].desired_animation);
-            }
-        }
 
         for (int i = 0; i < it.count; i++) {
             anim[i].elapsed += dt;

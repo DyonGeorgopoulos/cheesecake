@@ -4,6 +4,7 @@
 #include "sokol_gfx.h"
 #include <stdbool.h>
 #include <cJSON.h>
+#include "components/animation_graph.h"
 
 #define INITIAL_SPRITE_ATLAS_CAPACITY 32
 
@@ -26,6 +27,7 @@ typedef struct {
     AnimationData *animations;  // Array of animations
     char **animation_names;     // Parallel array of names
     int animation_count;
+    AnimationGraph *animation_graph;
 } SpriteEntityData;
 
 typedef struct {

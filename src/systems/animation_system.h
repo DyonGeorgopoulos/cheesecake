@@ -5,6 +5,6 @@
 #include "renderer.h"
 #include <flecs.h>
 
-void AnimationSystem(ecs_iter_t* it);
-void AnimationControllerSystem(ecs_iter_t *it);
+void AnimationGraphSystem(ecs_iter_t *it);
+
 #endif

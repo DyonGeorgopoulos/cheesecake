@@ -13,6 +13,7 @@
 #include "shader.glsl.h"
 #include "entities/entity_factory.h"
 #include "systems/animation_system.h"
+#include "components/animation_graph.h"
 
 // flecs
 #include <flecs.h>
@@ -60,6 +61,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     // Initialise ecs_world
     state->ecs = ecs_init();
     rendering_components_register(state->ecs);
+    animation_graph_components_register(state->ecs);
 
     state->renderer.queries.shapes = ecs_query(state->ecs, {
         .terms = {
@@ -139,6 +141,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     pos->y += vel->y * state->delta_time * 60;  // Scale by delta time
 
     // Update animations
+    ecs_iter_t it = ecs_query_iter(state->ecs, state->renderer.queries.animation_graphs);
+    while (ecs_query_next(&it)) {
+        AnimationGraphSystem(&it);
+    }
     update_animations(state, state->delta_time);
     // Update FPS counter
     fps_counter_update(state);
@@ -150,6 +156,13 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     return SDL_APP_CONTINUE;
 }
 
+void do_resize(void* appstate) {
+    AppState* state = (AppState*) appstate;
+    int width, height;
+    SDL_GetWindowSize(state->window, &width, &height);
+    renderer_resize(state, width, height);
+}
+
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     AppState* state = (AppState*) appstate;
 
@@ -158,11 +171,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
             return SDL_APP_SUCCESS;
             break;
         case SDL_EVENT_WINDOW_RESIZED:
-            int current_width, current_height;
-            SDL_GetWindowSizeInPixels(state->window, &current_width, &current_height);
-            if (current_width != state->width || current_height != state->height) {
-                renderer_resize(state, current_width, current_height);
-            }
+            do_resize(appstate); 
             break;
         case SDL_EVENT_KEY_DOWN:
             if (event->key.key == SDLK_ESCAPE) return SDL_APP_SUCCESS;

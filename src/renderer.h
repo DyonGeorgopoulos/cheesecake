@@ -25,8 +25,8 @@ typedef struct {
     char fps_text[32];
 } fps_counter_t;
 
-
 extern fps_counter_t fps_counter;
+
 typedef struct {
     SDL_Window* window;
     void* native_context;
@@ -34,6 +34,13 @@ typedef struct {
     int height;
     bool is_initialized;
 } renderer_context_t;
+
+typedef bool (*ConditionFunc)(ecs_world_t*, ecs_entity_t);
+
+typedef struct {
+    const char *name;
+    ConditionFunc func;
+} ConditionRegistry;
 
 // Common renderer interface
 bool renderer_init(void* appstate);
