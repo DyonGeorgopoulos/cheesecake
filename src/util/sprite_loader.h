@@ -9,11 +9,14 @@
 #define INITIAL_SPRITE_ATLAS_CAPACITY 32
 
 typedef struct {
-    sg_image texture;
-    int row;
+    char name[64];
+    char texture_path[256];
     int frame_count;
+    int direction_count;  // NEW: number of directions in sprite sheet
     float frame_time;
     bool loop;
+    int row;  // Keep for backward compatibility with old format
+    sg_image texture;
 } AnimationData;
 
 typedef struct {

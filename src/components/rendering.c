@@ -10,6 +10,7 @@ ECS_COMPONENT_DECLARE(RenderOffset);
 ECS_COMPONENT_DECLARE(SpriteEntityRef);
 ECS_COMPONENT_DECLARE(AnimationController);
 ECS_COMPONENT_DECLARE(Velocity);
+ECS_COMPONENT_DECLARE(Direction);
 
 void rendering_components_register(ecs_world_t *world) {
     ECS_COMPONENT_DEFINE(world, Sprite);
@@ -22,4 +23,5 @@ void rendering_components_register(ecs_world_t *world) {
     ECS_COMPONENT_DEFINE(world, SpriteEntityRef);
     ECS_COMPONENT_DEFINE(world, AnimationController);
     ECS_COMPONENT_DEFINE(world, Velocity);
+    ECS_COMPONENT_DEFINE(world, Direction);
 }

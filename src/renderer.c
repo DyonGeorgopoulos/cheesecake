@@ -35,17 +35,24 @@ bool renderer_initialize(AppState* state) {
     });
 
     state->renderer.queries.animations = ecs_query(state->ecs, {
-        .terms = {{ ecs_id(SpriteAnimation)},
-                  { ecs_id(Sprite)}, 
-                  { ecs_id(SpriteEntityRef)},
-                  { ecs_id(AnimationController)},
-                  { ecs_id(Velocity)}
-                }
-    });
+    .terms = {
+        { .id = ecs_id(SpriteAnimation) },
+        { .id = ecs_id(Sprite) },
+        { .id = ecs_id(SpriteEntityRef) },
+        { .id = ecs_id(Direction) },  // NEW
+        { .id = ecs_id(Velocity), .inout = EcsIn }  // Optional but useful
+    }
+});
 
     state->renderer.queries.animation_graphs = ecs_query(state->ecs, {
         .terms = {{ ecs_id(SpriteAnimation)},
                   { ecs_id(AnimationGraphComponent)}
+                }
+    });
+
+        state->renderer.queries.direction = ecs_query(state->ecs, {
+        .terms = {{ ecs_id(Velocity)},
+                  { ecs_id(Direction)}
                 }
     });
 
@@ -149,25 +156,20 @@ void renderer_draw_frame(void* appstate) {
 
 void update_animations(AppState *state, float dt) {
     ecs_iter_t it = ecs_query_iter(state->ecs, state->renderer.queries.animations);
-    
+   
     while (ecs_query_next(&it)) {
         SpriteAnimation *anim = ecs_field(&it, SpriteAnimation, 0);
         Sprite *sprite = ecs_field(&it, Sprite, 1);
         SpriteEntityRef *entity_ref = ecs_field(&it, SpriteEntityRef, 2);
-        AnimationController  *ctrl = ecs_field(&it, AnimationController , 3);
-        Velocity *vel = ecs_field(&it, Velocity, 4);
-
+        Direction *dir = ecs_field(&it, Direction, 3);  // NEW
+        
         for (int i = 0; i < it.count; i++) {
             anim[i].elapsed += dt;
-            
+           
             if (anim[i].elapsed >= anim[i].frame_time) {
-                printf("Advancing frame: %d -> %d (elapsed: %f, frame_time: %f)\n", 
-           anim[i].current_frame, anim[i].current_frame + 1, 
-           anim[i].elapsed, anim[i].frame_time);
-    
-            anim[i].elapsed -= anim[i].frame_time;
-            anim[i].current_frame++;
-                
+                anim[i].elapsed -= anim[i].frame_time;
+                anim[i].current_frame++;
+               
                 if (anim[i].current_frame >= anim[i].frame_count) {
                     if (anim[i].loop) {
                         anim[i].current_frame = 0;
@@ -175,47 +177,75 @@ void update_animations(AppState *state, float dt) {
                         anim[i].current_frame = anim[i].frame_count - 1;
                     }
                 }
+               
+                // Find current animation data
+                AnimationData *current_anim = NULL;
+                for (int j = 0; j < entity_ref[i].entity_data->animation_count; j++) {
+                    if (strcmp(entity_ref[i].entity_data->animation_names[j], anim[i].anim_name) == 0) {
+                        current_anim = &entity_ref[i].entity_data->animations[j];
+                        break;
+                    }
+                }
                 
-                // Add the 16-pixel offset to frame position
-                sprite[i].src_x = anim[i].current_frame * entity_ref[i].entity_data->width;            
+                if (current_anim) {
+                    // Determine row based on animation type
+                    int row = 0;
+                    if (current_anim->direction_count > 1) {
+                        // Direction-based: use calculated direction
+                        row = dir[i].direction;
+                    } else if (current_anim->row >= 0) {
+                        // Old format: use explicit row
+                        row = current_anim->row;
+                    }
+                    
+                    sprite[i].src_x = anim[i].current_frame * entity_ref[i].entity_data->width;
+                    sprite[i].src_y = row * entity_ref[i].entity_data->height;
+                }
             }
-            printf("Frame time: %f, elapsed: %f, current_frame: %d\n", 
-            anim[i].frame_time, anim[i].elapsed, anim[i].current_frame);
         }
     }
 }
 void set_sprite_animation(ecs_world_t *world, ecs_entity_t entity, const char *anim_name) {
-    const SpriteEntityRef *ref = ecs_get(world, entity, SpriteEntityRef);
+       const SpriteEntityRef *ref = ecs_get(world, entity, SpriteEntityRef);
     SpriteAnimation *anim_comp = ecs_get_mut(world, entity, SpriteAnimation);
     Sprite *sprite = ecs_get_mut(world, entity, Sprite);
-    
+    const Direction *dir = ecs_get(world, entity, Direction);
+   
     if (!ref || !anim_comp || !sprite) {
         fprintf(stderr, "Entity missing required components\n");
         return;
     }
-    
+   
     // Find the animation by name
     for (int i = 0; i < ref->entity_data->animation_count; i++) {
         if (strcmp(ref->entity_data->animation_names[i], anim_name) == 0) {
             AnimationData *anim = &ref->entity_data->animations[i];
-            
-            // Update sprite texture and source rect
+           
+            // Determine row based on animation type
+            int row = 0;
+            if (anim->direction_count > 1) {
+                row = dir ? dir->direction : 2;
+            } else if (anim->row >= 0) {
+                row = anim->row;
+            }
+           
+            // Update sprite texture and source rect IMMEDIATELY
             sprite->texture = anim->texture;
             sprite->src_x = 0;
-            sprite->src_y = anim->row * ref->entity_data->height;
-            
+            sprite->src_y = row * ref->entity_data->height;  // Set correct row NOW
+           
             // Update animation component
             strncpy(anim_comp->anim_name, anim_name, sizeof(anim_comp->anim_name) - 1);
+            anim_comp->anim_name[sizeof(anim_comp->anim_name) - 1] = '\0';
             anim_comp->frame_count = anim->frame_count;
             anim_comp->current_frame = 0;
             anim_comp->frame_time = anim->frame_time;
             anim_comp->elapsed = 0;
             anim_comp->loop = anim->loop;
-            
-            printf("Changed animation to: %s\n", anim_name);
+           
             return;
         }
     }
-    
+   
     fprintf(stderr, "Animation '%s' not found\n", anim_name);
 }

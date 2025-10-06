@@ -139,12 +139,18 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     Position* pos = ecs_get_mut(state->ecs, player, Position);
     pos->x += vel->x * state->delta_time * 60;  // Scale by delta time
     pos->y += vel->y * state->delta_time * 60;  // Scale by delta time
-
+    
     // Update animations
-    ecs_iter_t it = ecs_query_iter(state->ecs, state->renderer.queries.animation_graphs);
+    ecs_iter_t it = ecs_query_iter(state->ecs, state->renderer.queries.direction);
+    while (ecs_query_next(&it)) {
+        UpdateDirectionSystem(&it);
+    }
+
+    it = ecs_query_iter(state->ecs, state->renderer.queries.animation_graphs);
     while (ecs_query_next(&it)) {
         AnimationGraphSystem(&it);
     }
+
     update_animations(state, state->delta_time);
     // Update FPS counter
     fps_counter_update(state);

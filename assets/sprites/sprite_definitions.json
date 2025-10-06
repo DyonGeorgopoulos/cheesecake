@@ -8,77 +8,19 @@
             "origin_y": 16,
             "scale_x": 1.0,
             "scale_y": 1.0,
-            "sheet_offset_x": 0,
-            "sheet_offset_y": 0,
-            "default_animation": "idle_left",
+            "default_animation": "idle",
             "animations": {
-                "walk_left": {
-                    "texture": "assets/sprites/walk.png",
-                    "row": 1,
-                    "frame_count": 12,
-                    "frame_time": 0.1,
-                    "loop": true
-                },
-                "walk_right": {
-                    "texture": "assets/sprites/walk.png",
-                    "row": 5,
-                    "frame_count": 12,
-                    "frame_time": 0.1,
-                    "loop": true
-                },
-                "walk_up": {
-                    "texture": "assets/sprites/walk.png",
-                    "row": 7,
-                    "frame_count": 12,
-                    "frame_time": 0.1,
-                    "loop": true
-                },
-                "walk_down": {
-                    "texture": "assets/sprites/walk.png",
-                    "row": 3,
-                    "frame_count": 12,
-                    "frame_time": 0.1,
-                    "loop": true
-                },
-                "walk_up_left": {
-                    "texture": "assets/sprites/walk.png",
-                    "row": 0,
-                    "frame_count": 12,
-                    "frame_time": 0.1,
-                    "loop": true
-                },
-                "walk_up_right": {
-                    "texture": "assets/sprites/walk.png",
-                    "row": 6,
-                    "frame_count": 12,
-                    "frame_time": 0.1,
-                    "loop": true
-                },
-                "walk_down_right": {
-                    "texture": "assets/sprites/walk.png",
-                    "row": 4,
-                    "frame_count": 12,
-                    "frame_time": 0.1,
-                    "loop": true
-                },
-                "walk_down_left": {
-                    "texture": "assets/sprites/walk.png",
-                    "row": 2,
-                    "frame_count": 12,
-                    "frame_time": 0.1,
-                    "loop": true
-                },
-                "idle_left": {
+                "idle": {
                     "texture": "assets/sprites/idle.png",
-                    "row": 1,
                     "frame_count": 12,
+                    "direction_count": 8,
                     "frame_time": 0.1,
                     "loop": true
                 },
-                "idle_right": {
-                    "texture": "assets/sprites/idle.png",
-                    "row": 5,
+                "walk": {
+                    "texture": "assets/sprites/walk.png",
                     "frame_count": 12,
+                    "direction_count": 8,
                     "frame_time": 0.1,
                     "loop": true
                 }
@@ -86,51 +28,15 @@
             "animation_graph": {
                 "transitions": [
                     {
-                        "from": "idle_left",
-                        "to": "walk_left",
-                        "condition": "is_moving_left",
+                        "from": "idle",
+                        "to": "walk",
+                        "condition": "is_moving",
                         "priority": 1
                     },
                     {
-                        "from": "idle_left",
-                        "to": "walk_right",
-                        "condition": "is_moving_right",
-                        "priority": 1
-                    },
-                    {
-                        "from": "walk_left",
-                        "to": "idle_left",
+                        "from": "walk",
+                        "to": "idle",
                         "condition": "is_idle",
-                        "priority": 1
-                    },
-                    {
-                        "from": "walk_left",
-                        "to": "walk_right",
-                        "condition": "is_moving_right",
-                        "priority": 1
-                    },
-                    {
-                        "from": "idle_right",
-                        "to": "walk_right",
-                        "condition": "is_moving_right",
-                        "priority": 1
-                    },
-                    {
-                        "from": "idle_right",
-                        "to": "walk_left",
-                        "condition": "is_moving_left",
-                        "priority": 1
-                    },
-                    {
-                        "from": "walk_right",
-                        "to": "idle_right",
-                        "condition": "is_idle",
-                        "priority": 1
-                    },
-                    {
-                        "from": "walk_right",
-                        "to": "walk_left",
-                        "condition": "is_moving_left",
                         "priority": 1
                     }
                 ]

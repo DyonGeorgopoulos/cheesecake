@@ -26,7 +26,7 @@ sg_image load_texture(char* path) {
     stbi_image_free(data);
     return img;
 }
-// need to initialise the sprite atlas. 
+
 bool sprite_atlas_init(SpriteAtlas* atlas) {
     atlas->entity_count = 0;
     return true;
@@ -66,7 +66,6 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
         return false;
     }
     
-    // Count sprites to allocate
     int sprite_count = cJSON_GetArraySize(sprites);
     atlas->entities = malloc(sprite_count * sizeof(SpriteEntityData));
     atlas->entity_count = 0;
@@ -126,6 +125,7 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
             cJSON* frame_count = cJSON_GetObjectItemCaseSensitive(anim, "frame_count");
             cJSON* frame_time = cJSON_GetObjectItemCaseSensitive(anim, "frame_time");
             cJSON* loop = cJSON_GetObjectItemCaseSensitive(anim, "loop");
+            cJSON* direction_count = cJSON_GetObjectItemCaseSensitive(anim, "direction_count"); // NEW
             
             if (!cJSON_IsString(texture) || !cJSON_IsNumber(frame_count)) {
                 fprintf(stderr, "Invalid animation: %s:%s\n", entity->name, anim_name);
@@ -135,10 +135,19 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
             
             AnimationData *anim_data = &entity->animations[entity->animation_count];
             anim_data->texture = load_texture(texture->valuestring);
-            anim_data->row = cJSON_IsNumber(row) ? row->valueint : 0;
             anim_data->frame_count = frame_count->valueint;
             anim_data->frame_time = cJSON_IsNumber(frame_time) ? frame_time->valuedouble : 0.1f;
             anim_data->loop = cJSON_IsBool(loop) ? cJSON_IsTrue(loop) : true;
+            
+            // NEW: Handle direction_count
+            if (cJSON_IsNumber(direction_count)) {
+                anim_data->direction_count = direction_count->valueint;
+                anim_data->row = -1; // Mark as direction-based
+            } else {
+                // Backward compatibility: use explicit row
+                anim_data->row = cJSON_IsNumber(row) ? row->valueint : 0;
+                anim_data->direction_count = 1; // Single direction
+            }
             
             if (sg_query_image_state(anim_data->texture) != SG_RESOURCESTATE_VALID) {
                 fprintf(stderr, "Failed to load texture: %s\n", texture->valuestring);
@@ -146,16 +155,17 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
                 continue;
             }
             
-            // Store animation name
             entity->animation_names[entity->animation_count] = malloc(strlen(anim_name) + 1);
             strcpy(entity->animation_names[entity->animation_count], anim_name);
             
             entity->animation_count++;
-            printf("Loaded: %s:%s (%d frames)\n", entity->name, anim_name, anim_data->frame_count);
+            printf("Loaded: %s:%s (%d frames, %d directions)\n", 
+                   entity->name, anim_name, anim_data->frame_count, anim_data->direction_count);
             
             anim = anim->next;
         }
 
+        // Parse animation graph
         cJSON *graph_json = cJSON_GetObjectItemCaseSensitive(sprite, "animation_graph");
         if (graph_json) {
             cJSON *transitions_json = cJSON_GetObjectItemCaseSensitive(graph_json, "transitions");
@@ -188,9 +198,9 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
                 }
                 entity->animation_graph->transition_count = idx;
             }
-            } else {
-                entity->animation_graph = NULL;
-            }
+        } else {
+            entity->animation_graph = NULL;
+        }
         
         atlas->entity_count++;
     }
@@ -205,6 +215,5 @@ SpriteEntityData* sprite_atlas_get(SpriteAtlas *atlas, const char *name) {
             return &atlas->entities[i];
         }
     }
-    // this could be a hashmap for o(1) lookup
     return NULL;
 }

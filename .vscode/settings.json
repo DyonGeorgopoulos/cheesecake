@@ -26,6 +26,11 @@
         "string": "c",
         "animation_system.h": "c",
         "random": "c",
-        "vector": "c"
+        "vector": "c",
+        "animation_graph.h": "c",
+        "math.h": "c",
+        "rendering.h": "c",
+        "string.h": "c",
+        "last_direction_system.h": "c"
     }
 }

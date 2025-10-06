@@ -58,6 +58,10 @@ typedef struct {
     char desired_animation[64];
 } AnimationController;
 
+typedef struct {
+    int direction;  // 0-7: N, NE, E, SE, S, SW, W, NW
+} Direction;
+
 extern ECS_COMPONENT_DECLARE(Position);
 extern ECS_COMPONENT_DECLARE(Sprite);
 extern ECS_COMPONENT_DECLARE(Colour);
@@ -68,6 +72,7 @@ extern ECS_COMPONENT_DECLARE(RenderOffset);
 extern ECS_COMPONENT_DECLARE(SpriteEntityRef);
 extern ECS_COMPONENT_DECLARE(AnimationController);
 extern ECS_COMPONENT_DECLARE(Velocity);
+extern ECS_COMPONENT_DECLARE(Direction);
 
 void rendering_components_register(ecs_world_t *world);
 
