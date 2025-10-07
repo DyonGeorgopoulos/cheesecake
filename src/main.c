@@ -21,7 +21,7 @@
 
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 720
-#define WINDOW_TITLE "Sokol + SDL3 Demo"
+#define WINDOW_TITLE "Cheesecake"
 #define TARGET_FPS 240 
 #define TARGET_FRAME_TIME (1000 / TARGET_FPS)
 
