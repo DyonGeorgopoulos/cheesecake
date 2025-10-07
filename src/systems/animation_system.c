@@ -1,19 +1,22 @@
 #include "animation_system.h"
 
-#include "components/rendering.h"
 #include "components/animation_graph.h"
 #include <string.h>
 
 #include <math.h>
 void AnimationGraphSystem(ecs_iter_t *it) {
-    SpriteAnimation *anim = ecs_field(it, SpriteAnimation, 0);
-    AnimationGraphComponent *graph_comp = ecs_field(it, AnimationGraphComponent, 1);
+    AnimationSet *anim_set = ecs_field(it, AnimationSet, 0);
+    AnimationState *anim_state = ecs_field(it, AnimationState, 1);
+    AnimationGraphComponent *graph_comp = ecs_field(it, AnimationGraphComponent, 2);
    
     for (int i = 0; i < it->count; i++) {
         if (!graph_comp[i].graph) continue;
        
         AnimationGraph *graph = graph_comp[i].graph;
-        const char *current = anim[i].anim_name;
+        
+        // Get current animation name from the clip index
+        const char *current = anim_set[i].clip_names[anim_state[i].current_clip];
+        const AnimationClip *current_clip = &anim_set[i].clips[anim_state[i].current_clip];
        
         AnimationTransition *best = NULL;
         int best_priority = -1;
@@ -30,8 +33,8 @@ void AnimationGraphSystem(ecs_iter_t *it) {
            
             // NULL condition = animation_complete
             if (trans->condition == NULL) {
-                if (!anim[i].loop &&
-                    anim[i].current_frame == anim[i].frame_count - 1) {
+                if (!current_clip->loop &&
+                    anim_state[i].current_frame == current_clip->frame_count - 1) {
                     should_transition = true;
                 }
             } else {
@@ -51,16 +54,24 @@ void AnimationGraphSystem(ecs_iter_t *it) {
 }
 
 void UpdateDirectionSystem(ecs_iter_t *it) {
-    Velocity *vel = ecs_field(it, Velocity, 0);
+   Velocity *vel = ecs_field(it, Velocity, 0);
     Direction *dir = ecs_field(it, Direction, 1);
     
-    static const int angle_to_row[8] = {
-        5, 4, 3, 2, 1, 0, 7, 6
+    // Maps angle index to your sprite sheet row
+    static const DirectionEnum angle_to_row[8] = {
+        DIR_RIGHT,       // 0°   (East)
+        DIR_DOWN_RIGHT,  // 45°  (Southeast)
+        DIR_DOWN,        // 90°  (South)
+        DIR_DOWN_LEFT,   // 135° (Southwest)
+        DIR_LEFT,        // 180° (West)
+        DIR_UP_LEFT,     // 225° (Northwest)
+        DIR_UP,          // 270° (North)
+        DIR_UP_RIGHT     // 315° (Northeast)
     };
     
     for (int i = 0; i < it->count; i++) {
         if (vel[i].x == 0 && vel[i].y == 0) {
-            continue; // Keep direction when idle
+            continue;
         }
         
         float angle = atan2f(vel[i].y, vel[i].x);

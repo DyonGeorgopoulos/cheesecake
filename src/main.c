@@ -1,5 +1,4 @@
 #include "window.h"
-#include "renderer.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -9,10 +8,12 @@
 #include <SDL3/SDL_main.h>
 
 #include "font_rendering.h"
-#include "renderer.h"
 #include "shader.glsl.h"
+#include "util/map_loader.h"
 #include "entities/entity_factory.h"
 #include "systems/animation_system.h"
+#include "systems/render_system.h"
+
 #include "components/animation_graph.h"
 
 // flecs
@@ -60,15 +61,16 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
     // Initialise ecs_world
     state->ecs = ecs_init();
-    rendering_components_register(state->ecs);
-    animation_graph_components_register(state->ecs);
 
-    state->renderer.queries.shapes = ecs_query(state->ecs, {
-        .terms = {
-            { .id = ecs_id(Position) },
-            { .id = ecs_id(Colour) }
-        }
-    });
+    // register components
+    transform_components_register(state->ecs);
+    animation_components_register(state->ecs);
+    animation_graph_components_register(state->ecs);
+    sprite_components_register(state->ecs);
+
+        // register systems
+    ECS_SYSTEM(state->ecs, UpdateDirectionSystem, EcsOnUpdate, Velocity, Direction);
+    ECS_SYSTEM(state->ecs, AnimationGraphSystem, EcsOnUpdate, AnimationSet, AnimationState, AnimationGraphComponent);
 
     printf("Starting %s...\n", WINDOW_TITLE);
 
@@ -95,7 +97,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
     // spawn a player entity
     player = entity_factory_spawn_sprite(state, "player", 200, 200);
-    entity_factory_spawn_sprite(state, "player", 150, 200);
+
+
+    // load the map
+    load_map(state, "");
     // Initialise the text renderer
     text_renderer_init(&renderer, 1000);
     state->renderer.text_renderer = &renderer;
@@ -120,12 +125,6 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
     state->ecs_accumulator += state->delta_time;
 
-    // 0.6 tick system. Run game update code in here.
-    if (state->ecs_accumulator >= ECS_UPDATE_INTERVAL) {
-        ecs_progress(state->ecs, state->ecs_accumulator);
-        state->ecs_accumulator = 0.0f;
-    }
-
     Velocity* vel = ecs_get_mut(state->ecs, player, Velocity);
     vel->x = 0;
     if (state->input.right) vel->x = 3;
@@ -140,16 +139,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     pos->x += vel->x * state->delta_time * 60;  // Scale by delta time
     pos->y += vel->y * state->delta_time * 60;  // Scale by delta time
     
-    // Update animations
-    ecs_iter_t it = ecs_query_iter(state->ecs, state->renderer.queries.direction);
-    while (ecs_query_next(&it)) {
-        UpdateDirectionSystem(&it);
-    }
-
-    it = ecs_query_iter(state->ecs, state->renderer.queries.animation_graphs);
-    while (ecs_query_next(&it)) {
-        AnimationGraphSystem(&it);
-    }
+    ecs_progress(state->ecs, state->delta_time);
 
     update_animations(state, state->delta_time);
     // Update FPS counter

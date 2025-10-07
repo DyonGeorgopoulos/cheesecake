@@ -1,5 +1,5 @@
-#ifndef RENDERER_H
-#define RENDERER_H
+#ifndef RENDER_SYSTEM_H
+#define RENDER_SYSTEM_H
 
 #include <SDL3/SDL.h>
 #include <stdbool.h>
@@ -13,7 +13,9 @@
 
 #include <flecs.h>
 
-#include "components/rendering.h"
+#include "components/transform.h"
+#include "components/animation.h"
+#include "components/sprite.h"
 
 #ifdef __cplusplus
 extern "C" {

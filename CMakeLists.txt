@@ -188,16 +188,20 @@ add_custom_target(copy_assets ALL
 # Source files
 set(SOURCES
     src/main.c
-    src/renderer.c
     src/window.c
     src/font_rendering.c
     src/sokol.c
-    src/components/rendering.c
     src/components/animation_graph.c
+    src/components/animation.c
+    src/components/transform.c
+    src/components/sprite.c
     src/entities/entity_factory.c
     src/systems/animation_system.c
+    src/systems/render_system.c
     src/util/sprite_loader.c
     src/util/stb_impl.c
+    src/util/cute_tiled_impl.c
+    src/util/map_loader.c
 )
 
 # Platform-specific sources

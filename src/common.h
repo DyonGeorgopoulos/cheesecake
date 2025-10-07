@@ -32,6 +32,11 @@ typedef struct {
     // other render state
 } Renderer;
 
+typedef struct {
+    ecs_entity_t* level;
+    int map_height;
+    int map_width;
+} Map;
 typedef struct AppState {
     SDL_Window* window;
     int width, height;
@@ -45,6 +50,7 @@ typedef struct AppState {
     SpriteAtlas sprite_atlas;
     float ecs_accumulator;
     InputState input;
+    Map map;
   } AppState;
 
 #endif

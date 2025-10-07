@@ -8,39 +8,49 @@
 
 #define INITIAL_SPRITE_ATLAS_CAPACITY 32
 
+// Loaded animation clip (temporary)
 typedef struct {
-    char name[64];
-    char texture_path[256];
+    sg_image texture;
     int frame_count;
-    int direction_count;  // NEW: number of directions in sprite sheet
+    int direction_count;
     float frame_time;
     bool loop;
-    int row;  // Keep for backward compatibility with old format
-    sg_image texture;
-} AnimationData;
+    int row;
+} LoadedAnimationClip;
 
+// Transition definition (temporary)
 typedef struct {
-    char name[32];              // "player"
+    char from[64];
+    char to[64];
+    AnimationConditionFunc condition;
+    int priority;
+} LoadedTransition;
+
+// Loaded sprite data (temporary)
+typedef struct {
+    char name[64];
     int width, height;
-    float origin_x, origin_y;
     float scale_x, scale_y;
-    char default_animation[32]; // "idle_left"
+    char default_animation[64];
     
-    // Animation lookup for this entity
-    AnimationData *animations;  // Array of animations
-    char **animation_names;     // Parallel array of names
-    int animation_count;
-    AnimationGraph *animation_graph;
-} SpriteEntityData;
+    LoadedAnimationClip clips[16];
+    char clip_names[16][64];
+    int clip_count;
+    
+    LoadedTransition *transitions;
+    int transition_count;
+} LoadedSpriteData;
 
+// Atlas for all loaded sprites
 typedef struct {
-    SpriteEntityData *entities;
+    LoadedSpriteData *entities;
     int entity_count;
 } SpriteAtlas;
 
 bool sprite_atlas_init(SpriteAtlas* atlas);
 bool sprite_atlas_load(SpriteAtlas* atlas, const char* path);
-SpriteEntityData* sprite_atlas_get(SpriteAtlas* atlas, const char* name); // gets the sprite data
+LoadedSpriteData* sprite_atlas_get(SpriteAtlas *atlas, const char *name);
 void sprite_atlas_shutdown(SpriteAtlas* atlas);
+AnimationConditionFunc lookup_condition_function(const char *name);
 
 #endif

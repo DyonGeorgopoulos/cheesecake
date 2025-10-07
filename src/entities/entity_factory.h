@@ -4,7 +4,9 @@
 
 #include <flecs.h>
 #include "util/sprite_loader.h"
-#include "components/rendering.h"
+#include "components/transform.h"
+#include "components/animation.h"
+#include "components/sprite.h"
 #include "common.h"
 
 

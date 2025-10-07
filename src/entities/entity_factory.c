@@ -1,95 +1,92 @@
 #include "entity_factory.h"
 
 ecs_entity_t entity_factory_spawn_sprite(AppState* state, const char* sprite_name, float x, float y) {
-    SpriteEntityData *entity_data = sprite_atlas_get(&state->sprite_atlas, sprite_name);
-    if (!entity_data) {
-        fprintf(stderr, "Failed to find sprite entity: %s\n", sprite_name);
+    LoadedSpriteData *loaded = sprite_atlas_get(&state->sprite_atlas, sprite_name);
+    if (!loaded) {
+        fprintf(stderr, "Failed to find sprite: %s\n", sprite_name);
         return 0;
     }
-   
-    // Find default animation
-    int default_anim_idx = 0;
-    if (entity_data->default_animation[0] != '\0') {
-        for (int i = 0; i < entity_data->animation_count; i++) {
-            if (strcmp(entity_data->animation_names[i], entity_data->default_animation) == 0) {
-                default_anim_idx = i;
-                break;
-            }
+    
+    ecs_entity_t e = ecs_new(state->ecs);
+    printf("Created entity: %llu\n", e);
+    
+    AnimationSet anim_set = {0};
+    anim_set.width = loaded->width;
+    anim_set.height = loaded->height;
+    anim_set.clip_count = loaded->clip_count;
+    
+    for (int i = 0; i < loaded->clip_count; i++) {
+        anim_set.clips[i].texture = loaded->clips[i].texture;
+        anim_set.clips[i].frame_count = loaded->clips[i].frame_count;
+        anim_set.clips[i].direction_count = loaded->clips[i].direction_count;
+        anim_set.clips[i].frame_time = loaded->clips[i].frame_time;
+        anim_set.clips[i].loop = loaded->clips[i].loop;
+        anim_set.clips[i].row = loaded->clips[i].row;
+        strncpy(anim_set.clip_names[i], loaded->clip_names[i], 63);
+    }
+    
+    printf("About to set AnimationSet, ID=%llu, valid=%d\n", 
+           ecs_id(AnimationSet), ecs_id_is_valid(state->ecs, ecs_id(AnimationSet)));
+    ecs_set_ptr(state->ecs, e, AnimationSet, &anim_set);
+    printf("AnimationSet OK\n");
+    
+    int default_idx = 0;
+    for (int i = 0; i < anim_set.clip_count; i++) {
+        if (strcmp(anim_set.clip_names[i], loaded->default_animation) == 0) {
+            default_idx = i;
+            break;
         }
     }
     
-    AnimationData *anim = &entity_data->animations[default_anim_idx];
+    AnimationClip *clip = &anim_set.clips[default_idx];
+    int initial_row = clip->direction_count > 1 ? 2 : (clip->row >= 0 ? clip->row : 0);
     
-    // Create entity
-    ecs_entity_t e = ecs_new(state->ecs);
-   
-    // Set position
-    ecs_set(state->ecs, e, Position, {x, y});
-    
-    // NEW: Initialize direction (default to south/down = direction 2)
-    ecs_set(state->ecs, e, Direction, {
-        .direction = 2  // Start facing south
+    printf("About to set AnimationState, ID=%llu, valid=%d\n", 
+           ecs_id(AnimationState), ecs_id_is_valid(state->ecs, ecs_id(AnimationState)));
+    ecs_set(state->ecs, e, AnimationState, {
+        .current_clip = default_idx,
+        .current_frame = 0,
+        .elapsed = 0
     });
+    printf("AnimationState OK\n");
     
-    // Set velocity
-    ecs_set(state->ecs, e, Velocity, {
-        .x = 0,
-        .y = 0
-    });
-   
-    // Determine initial row based on animation type
-    int initial_row = 0;
-    if (anim->direction_count > 1) {
-        // Direction-based animation - use default direction (2 = south)
-        initial_row = 2;
-    } else if (anim->row >= 0) {
-        // Old format with explicit row
-        initial_row = anim->row;
-    }
-    
-    // Set sprite component
     ecs_set(state->ecs, e, Sprite, {
-        .texture = anim->texture,
-        .src_x = 0,  // Start at first frame
-        .src_y = initial_row * entity_data->height,
-        .src_w = entity_data->width,
-        .src_h = entity_data->height,
-        .scale_x = entity_data->scale_x,
-        .scale_y = entity_data->scale_y,
+        .texture = clip->texture,
+        .src_x = 0,
+        .src_y = initial_row * loaded->height,
+        .src_w = loaded->width,
+        .src_h = loaded->height,
+        .scale_x = loaded->scale_x,
+        .scale_y = loaded->scale_y,
         .rotation = 0
     });
-   
-    // Set animation component
-    ecs_set(state->ecs, e, SpriteAnimation, {
-        .frame_count = anim->frame_count,
-        .current_frame = 0,
-        .frame_time = anim->frame_time,
-        .elapsed = 0,
-        .loop = anim->loop
-    });
+
+    ecs_set(state->ecs, e, Position, {x, y});
+    ecs_set(state->ecs, e, Direction, {.direction = 2});
+    ecs_set(state->ecs, e, Velocity, {0, 0});
+    printf("Velocity OK\n");
     
-    // Copy animation name
-    strncpy(ecs_get_mut(state->ecs, e, SpriteAnimation)->anim_name,
-            entity_data->animation_names[default_anim_idx], 63);
-    
-    // Set animation controller
-    ecs_set(state->ecs, e, AnimationController, {
-        .current_state = {0}
-    });
-    strncpy(ecs_get_mut(state->ecs, e, AnimationController)->current_state,
-            entity_data->default_animation, 31);
-   
-    // Store reference to entity data
-    ecs_set_ptr(state->ecs, e, SpriteEntityRef, &(SpriteEntityRef){
-        .entity_data = entity_data
-    });
-   
-    // Set up animation graph if present
-    if (entity_data && entity_data->animation_graph) {
-        ecs_set_ptr(state->ecs, e, AnimationGraphComponent, &(AnimationGraphComponent){
-            .graph = entity_data->animation_graph
-        });
+    // Copy animation graph if exists
+    if (loaded->transitions && loaded->transition_count > 0) {
+        printf("About to create AnimationGraph\n");
+        AnimationGraph *graph = malloc(sizeof(AnimationGraph));
+        graph->transition_count = loaded->transition_count;
+        graph->transitions = malloc(loaded->transition_count * sizeof(AnimationTransition));
+        
+        for (int i = 0; i < loaded->transition_count; i++) {
+            AnimationTransition *t = &graph->transitions[i];
+            strncpy(t->from, loaded->transitions[i].from, 63);
+            strncpy(t->to, loaded->transitions[i].to, 63);
+            t->condition = loaded->transitions[i].condition;
+            t->priority = loaded->transitions[i].priority;
+        }
+        
+        printf("About to set AnimationGraphComponent, ID=%llu, valid=%d\n", 
+               ecs_id(AnimationGraphComponent), ecs_id_is_valid(state->ecs, ecs_id(AnimationGraphComponent)));
+        ecs_set_ptr(state->ecs, e, AnimationGraphComponent, &(AnimationGraphComponent){graph});
+        printf("AnimationGraphComponent OK\n");
     }
-   
+    
+    printf("Entity spawn complete\n");
     return e;
 }

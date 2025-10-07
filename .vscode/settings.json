@@ -31,6 +31,11 @@
         "math.h": "c",
         "rendering.h": "c",
         "string.h": "c",
-        "last_direction_system.h": "c"
+        "last_direction_system.h": "c",
+        "sokol_gfx.h": "c",
+        "render_system.h": "c",
+        "transform.h": "c",
+        "entity_factory.h": "c",
+        "sprite.h": "c"
     }
 }

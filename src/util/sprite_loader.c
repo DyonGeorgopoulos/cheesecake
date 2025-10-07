@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "util/stb_image.h"
+#include "cJSON.h"
 
 sg_image load_texture(char* path) {
     int width, height, channels;
@@ -29,6 +30,7 @@ sg_image load_texture(char* path) {
 
 bool sprite_atlas_init(SpriteAtlas* atlas) {
     atlas->entity_count = 0;
+    atlas->entities = NULL;
     return true;
 }
 
@@ -67,19 +69,18 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
     }
     
     int sprite_count = cJSON_GetArraySize(sprites);
-    atlas->entities = malloc(sprite_count * sizeof(SpriteEntityData));
+    atlas->entities = malloc(sprite_count * sizeof(LoadedSpriteData));
     atlas->entity_count = 0;
     
     cJSON *sprite = NULL;
     cJSON_ArrayForEach(sprite, sprites) {
-        SpriteEntityData *entity = &atlas->entities[atlas->entity_count];
+        LoadedSpriteData *entity = &atlas->entities[atlas->entity_count];
+        memset(entity, 0, sizeof(LoadedSpriteData));
         
         // Parse entity-level properties
         cJSON* name = cJSON_GetObjectItemCaseSensitive(sprite, "name");
         cJSON* width = cJSON_GetObjectItemCaseSensitive(sprite, "width");
         cJSON* height = cJSON_GetObjectItemCaseSensitive(sprite, "height");
-        cJSON* origin_x = cJSON_GetObjectItemCaseSensitive(sprite, "origin_x");
-        cJSON* origin_y = cJSON_GetObjectItemCaseSensitive(sprite, "origin_y");
         cJSON* scale_x = cJSON_GetObjectItemCaseSensitive(sprite, "scale_x");
         cJSON* scale_y = cJSON_GetObjectItemCaseSensitive(sprite, "scale_y");
         cJSON* default_anim = cJSON_GetObjectItemCaseSensitive(sprite, "default_animation");
@@ -92,8 +93,6 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
         strncpy(entity->name, name->valuestring, sizeof(entity->name) - 1);
         entity->width = cJSON_IsNumber(width) ? width->valueint : 32;
         entity->height = cJSON_IsNumber(height) ? height->valueint : 32;
-        entity->origin_x = cJSON_IsNumber(origin_x) ? origin_x->valuedouble : 16;
-        entity->origin_y = cJSON_IsNumber(origin_y) ? origin_y->valuedouble : 16;
         entity->scale_x = cJSON_IsNumber(scale_x) ? scale_x->valuedouble : 1.0f;
         entity->scale_y = cJSON_IsNumber(scale_y) ? scale_y->valuedouble : 1.0f;
         
@@ -111,13 +110,9 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
             continue;
         }
         
-        int anim_count = cJSON_GetArraySize(animations);
-        entity->animation_count = 0;
-        entity->animations = malloc(anim_count * sizeof(AnimationData));
-        entity->animation_names = malloc(anim_count * sizeof(char*));
-        
+        entity->clip_count = 0;
         cJSON *anim = animations->child;
-        while (anim) {
+        while (anim && entity->clip_count < 16) {
             const char* anim_name = anim->string;
             
             cJSON* texture = cJSON_GetObjectItemCaseSensitive(anim, "texture");
@@ -125,7 +120,7 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
             cJSON* frame_count = cJSON_GetObjectItemCaseSensitive(anim, "frame_count");
             cJSON* frame_time = cJSON_GetObjectItemCaseSensitive(anim, "frame_time");
             cJSON* loop = cJSON_GetObjectItemCaseSensitive(anim, "loop");
-            cJSON* direction_count = cJSON_GetObjectItemCaseSensitive(anim, "direction_count"); // NEW
+            cJSON* direction_count = cJSON_GetObjectItemCaseSensitive(anim, "direction_count");
             
             if (!cJSON_IsString(texture) || !cJSON_IsNumber(frame_count)) {
                 fprintf(stderr, "Invalid animation: %s:%s\n", entity->name, anim_name);
@@ -133,34 +128,32 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
                 continue;
             }
             
-            AnimationData *anim_data = &entity->animations[entity->animation_count];
-            anim_data->texture = load_texture(texture->valuestring);
-            anim_data->frame_count = frame_count->valueint;
-            anim_data->frame_time = cJSON_IsNumber(frame_time) ? frame_time->valuedouble : 0.1f;
-            anim_data->loop = cJSON_IsBool(loop) ? cJSON_IsTrue(loop) : true;
+            LoadedAnimationClip *clip = &entity->clips[entity->clip_count];
+            clip->texture = load_texture(texture->valuestring);
+            clip->frame_count = frame_count->valueint;
+            clip->frame_time = cJSON_IsNumber(frame_time) ? frame_time->valuedouble : 0.1f;
+            clip->loop = cJSON_IsBool(loop) ? cJSON_IsTrue(loop) : true;
             
-            // NEW: Handle direction_count
+            // Handle direction_count
             if (cJSON_IsNumber(direction_count)) {
-                anim_data->direction_count = direction_count->valueint;
-                anim_data->row = -1; // Mark as direction-based
+                clip->direction_count = direction_count->valueint;
+                clip->row = -1;
             } else {
-                // Backward compatibility: use explicit row
-                anim_data->row = cJSON_IsNumber(row) ? row->valueint : 0;
-                anim_data->direction_count = 1; // Single direction
+                clip->row = cJSON_IsNumber(row) ? row->valueint : 0;
+                clip->direction_count = 1;
             }
             
-            if (sg_query_image_state(anim_data->texture) != SG_RESOURCESTATE_VALID) {
+            if (sg_query_image_state(clip->texture) != SG_RESOURCESTATE_VALID) {
                 fprintf(stderr, "Failed to load texture: %s\n", texture->valuestring);
                 anim = anim->next;
                 continue;
             }
             
-            entity->animation_names[entity->animation_count] = malloc(strlen(anim_name) + 1);
-            strcpy(entity->animation_names[entity->animation_count], anim_name);
+            strncpy(entity->clip_names[entity->clip_count], anim_name, 63);
+            entity->clip_count++;
             
-            entity->animation_count++;
             printf("Loaded: %s:%s (%d frames, %d directions)\n", 
-                   entity->name, anim_name, anim_data->frame_count, anim_data->direction_count);
+                   entity->name, anim_name, clip->frame_count, clip->direction_count);
             
             anim = anim->next;
         }
@@ -172,12 +165,10 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
             if (cJSON_IsArray(transitions_json)) {
                 int trans_count = cJSON_GetArraySize(transitions_json);
                 
-                entity->animation_graph = malloc(sizeof(AnimationGraph));
-                entity->animation_graph->transition_count = trans_count;
-                entity->animation_graph->transitions = malloc(trans_count * sizeof(AnimationTransition));
+                entity->transitions = malloc(trans_count * sizeof(LoadedTransition));
+                entity->transition_count = 0;
                 
                 cJSON *trans = NULL;
-                int idx = 0;
                 cJSON_ArrayForEach(trans, transitions_json) {
                     cJSON *from = cJSON_GetObjectItemCaseSensitive(trans, "from");
                     cJSON *to = cJSON_GetObjectItemCaseSensitive(trans, "to");
@@ -185,21 +176,18 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
                     cJSON *priority = cJSON_GetObjectItemCaseSensitive(trans, "priority");
                     
                     if (cJSON_IsString(from) && cJSON_IsString(to) && cJSON_IsString(condition)) {
-                        strncpy(entity->animation_graph->transitions[idx].from, 
-                            from->valuestring, 63);
-                        strncpy(entity->animation_graph->transitions[idx].to, 
-                            to->valuestring, 63);
-                        entity->animation_graph->transitions[idx].condition = 
-                            lookup_condition_function(condition->valuestring);
-                        entity->animation_graph->transitions[idx].priority = 
-                            cJSON_IsNumber(priority) ? priority->valueint : 1;
-                        idx++;
+                        LoadedTransition *t = &entity->transitions[entity->transition_count];
+                        strncpy(t->from, from->valuestring, 63);
+                        strncpy(t->to, to->valuestring, 63);
+                        t->condition = lookup_condition_function(condition->valuestring);
+                        t->priority = cJSON_IsNumber(priority) ? priority->valueint : 1;
+                        entity->transition_count++;
                     }
                 }
-                entity->animation_graph->transition_count = idx;
             }
         } else {
-            entity->animation_graph = NULL;
+            entity->transitions = NULL;
+            entity->transition_count = 0;
         }
         
         atlas->entity_count++;
@@ -209,11 +197,22 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
     return atlas->entity_count > 0;
 }
 
-SpriteEntityData* sprite_atlas_get(SpriteAtlas *atlas, const char *name) {
+LoadedSpriteData* sprite_atlas_get(SpriteAtlas *atlas, const char *name) {
     for (int i = 0; i < atlas->entity_count; i++) {
         if (strcmp(atlas->entities[i].name, name) == 0) {
             return &atlas->entities[i];
         }
     }
     return NULL;
+}
+
+void sprite_atlas_free(SpriteAtlas *atlas) {
+    for (int i = 0; i < atlas->entity_count; i++) {
+        if (atlas->entities[i].transitions) {
+            free(atlas->entities[i].transitions);
+        }
+    }
+    free(atlas->entities);
+    atlas->entities = NULL;
+    atlas->entity_count = 0;
 }
