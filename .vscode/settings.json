@@ -36,6 +36,8 @@
         "render_system.h": "c",
         "transform.h": "c",
         "entity_factory.h": "c",
-        "sprite.h": "c"
+        "sprite.h": "c",
+        "stb_ds.h": "c",
+        "grid_helper.h": "c"
     }
 }

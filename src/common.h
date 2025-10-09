@@ -6,6 +6,7 @@
 #include "font_rendering.h"
 #include "util/sprite_loader.h"
 
+#define TILE_SIZE 32
 typedef struct {
     bool left, right, up, down;
 } InputState;
@@ -33,6 +34,11 @@ typedef struct {
 } Renderer;
 
 typedef struct {
+    uint64_t key;
+    ecs_entity_t value;
+} GridEntry;
+
+typedef struct {
     ecs_entity_t* level;
     int map_height;
     int map_width;
@@ -51,6 +57,7 @@ typedef struct AppState {
     float ecs_accumulator;
     InputState input;
     Map map;
+    GridEntry* grid;
   } AppState;
 
 #endif

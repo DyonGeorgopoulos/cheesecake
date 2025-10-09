@@ -202,6 +202,7 @@ set(SOURCES
     src/util/stb_impl.c
     src/util/cute_tiled_impl.c
     src/util/map_loader.c
+    src/util/grid_helper.c
 )
 
 # Platform-specific sources

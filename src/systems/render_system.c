@@ -132,8 +132,7 @@ void renderer_draw_frame(void* appstate) {
             sgp_push_transform();
             sgp_translate(pos[i].x, pos[i].y);
             sgp_rotate(spr[i].rotation);
-            printf("Applying scale: %f, %f\n", 5.0f, 5.0f);
-            sgp_scale(5.0f, 5.0f);
+            sgp_scale(spr[i].scale_x, spr[i].scale_y);
             
             sgp_rect src = {spr[i].src_x, spr[i].src_y, spr[i].src_w, spr[i].src_h};
             sgp_rect dst = {0, 0, spr[i].src_w, spr[i].src_h};  // Keep this at base size

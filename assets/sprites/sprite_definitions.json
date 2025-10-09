@@ -41,6 +41,25 @@
                     }
                 ]
             }
+        },
+        {
+            "name" : "belt",
+            "width": 32,
+            "height": 32,
+            "origin_x": 0,
+            "origin_y": 0,
+            "scale_x": 1.0,
+            "scale_y": 1.0,
+            "default_animation": "right",
+            "animations": {
+                "idle": {
+                    "texture": "assets/sprites/belt_right.png",
+                    "frame_count": 8,
+                    "direction_count": 1,
+                    "frame_time": 0.1,
+                    "loop": true
+                }
+            }
         }
     ]
 }

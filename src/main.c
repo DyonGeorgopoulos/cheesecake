@@ -97,7 +97,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
     // spawn a player entity
     player = entity_factory_spawn_sprite(state, "player", 200, 200);
-
+    entity_factory_spawn_belt(state, 332, 333);
+    printf("found belt at positon: %llu\n", get_entity_at_grid_position(state, 332, 330));
 
     // load the map
     load_map(state, "");

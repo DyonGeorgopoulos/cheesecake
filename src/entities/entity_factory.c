@@ -90,3 +90,8 @@ ecs_entity_t entity_factory_spawn_sprite(AppState* state, const char* sprite_nam
     printf("Entity spawn complete\n");
     return e;
 }
+
+ecs_entity_t entity_factory_spawn_belt(AppState* state, float x, float y) {
+    ecs_entity_t belt = entity_factory_spawn_sprite(state, "belt", x, y);
+    insert_entity_to_grid(state, x, y, belt);
+}
