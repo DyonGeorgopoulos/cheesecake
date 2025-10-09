@@ -93,5 +93,57 @@ ecs_entity_t entity_factory_spawn_sprite(AppState* state, const char* sprite_nam
 
 ecs_entity_t entity_factory_spawn_belt(AppState* state, float x, float y) {
     ecs_entity_t belt = entity_factory_spawn_sprite(state, "belt", x, y);
+    Conveyor conveyor = {0};
+    ecs_set(state->ecs, belt, Conveyor, {
+        .dir = (Direction) { 
+            .direction = DIR_RIGHT
+        },
+        .lane_items = {0},
+        .lane_item_count = {0}
+    });
     insert_entity_to_grid(state, x, y, belt);
+    return belt;
+}
+
+void entity_factory_spawn_conveyor_item(AppState* state, ecs_entity_t conveyor, Lane lane) {
+    const Position* conv_pos = ecs_get(state->ecs, conveyor, Position);
+    const Conveyor* conv = ecs_get(state->ecs, conveyor, Conveyor);
+    
+    if (!conv_pos || !conv) {
+        printf("ERROR: Conveyor missing components!\n");
+        return;
+    }
+    
+    // Calculate starting position based on conveyor direction and lane
+    float start_x = conv_pos->x;
+    float start_y = conv_pos->y;
+    float tile_size = 32.0f;
+    float lane_offset = (lane == LANE_LEFT) ? -8.0f : 8.0f;
+    
+    switch (conv->dir.direction) {
+        case DIR_UP:    // North - start at bottom
+            start_x = conv_pos->x + lane_offset;
+            start_y = conv_pos->y + tile_size/2;
+            break;
+        case DIR_DOWN:  // South - start at top
+            start_x = conv_pos->x - lane_offset;
+            start_y = conv_pos->y - tile_size/2;
+            break;
+        case DIR_RIGHT: // East - start at left
+            start_x = conv_pos->x - tile_size/2;
+            start_y = conv_pos->y - lane_offset;
+            break;
+        case DIR_LEFT:  // West - start at right
+            start_x = conv_pos->x + tile_size/2;
+            start_y = conv_pos->y + lane_offset;
+            break;
+        default:
+            // For diagonal directions
+            start_x = conv_pos->x - tile_size/2;
+            start_y = conv_pos->y;
+            break;
+    }
+    
+    ecs_entity_t entity = entity_factory_spawn_sprite(state, "iron", start_x, start_y);
+    conveyor_add_item(state->ecs, conveyor, lane, entity);
 }

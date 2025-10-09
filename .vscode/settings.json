@@ -38,6 +38,9 @@
         "entity_factory.h": "c",
         "sprite.h": "c",
         "stb_ds.h": "c",
-        "grid_helper.h": "c"
+        "grid_helper.h": "c",
+        "animation.h": "c",
+        "conveyor_system.h": "c",
+        "conveyor.h": "c"
     }
 }

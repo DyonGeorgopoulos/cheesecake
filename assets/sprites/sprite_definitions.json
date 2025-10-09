@@ -60,6 +60,25 @@
                     "loop": true
                 }
             }
+        },
+        {
+            "name" : "iron",
+            "width": 32,
+            "height": 32,
+            "origin_x": 0,
+            "origin_y": 0,
+            "scale_x": 0.5,
+            "scale_y": 0.5,
+            "default_animation": "idle",
+            "animations": {
+                "idle": {
+                    "texture": "assets/sprites/iron.png",
+                    "frame_count": 1,
+                    "direction_count": 1,
+                    "frame_time": 0.1,
+                    "loop": false
+                }
+            }
         }
     ]
 }

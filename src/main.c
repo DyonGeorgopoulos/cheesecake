@@ -13,9 +13,10 @@
 #include "entities/entity_factory.h"
 #include "systems/animation_system.h"
 #include "systems/render_system.h"
+#include "systems/conveyor_system.h"
 
 #include "components/animation_graph.h"
-
+#include "components/conveyor.h"
 // flecs
 #include <flecs.h>
 
@@ -66,11 +67,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     transform_components_register(state->ecs);
     animation_components_register(state->ecs);
     animation_graph_components_register(state->ecs);
+    conveyor_components_register(state->ecs);
     sprite_components_register(state->ecs);
 
         // register systems
     ECS_SYSTEM(state->ecs, UpdateDirectionSystem, EcsOnUpdate, Velocity, Direction);
     ECS_SYSTEM(state->ecs, AnimationGraphSystem, EcsOnUpdate, AnimationSet, AnimationState, AnimationGraphComponent);
+    conveyor_system_init(state->ecs);
 
     printf("Starting %s...\n", WINDOW_TITLE);
 
@@ -94,12 +97,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     // Initialise the sprite system
     sprite_atlas_init(&state->sprite_atlas);
     sprite_atlas_load(&state->sprite_atlas, "assets/sprites/sprite_definitions.json");
-
     // spawn a player entity
     player = entity_factory_spawn_sprite(state, "player", 200, 200);
-    entity_factory_spawn_belt(state, 332, 333);
-    printf("found belt at positon: %llu\n", get_entity_at_grid_position(state, 332, 330));
+    ecs_entity_t belt = entity_factory_spawn_belt(state, 332, 333);
+    entity_factory_spawn_conveyor_item(state, belt, LANE_LEFT);
+    entity_factory_spawn_conveyor_item(state, belt, LANE_RIGHT);
 
+    ecs_entity_t belt2 = entity_factory_spawn_belt(state, 400, 400);
+    entity_factory_spawn_conveyor_item(state, belt2, LANE_LEFT);
     // load the map
     load_map(state, "");
     // Initialise the text renderer
