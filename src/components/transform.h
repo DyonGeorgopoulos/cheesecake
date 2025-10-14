@@ -12,13 +12,10 @@ typedef enum {
     DIR_RIGHT = 5,        // Row 5 - East
     DIR_UP_RIGHT = 6,     // Row 6 - Northeast
     DIR_UP = 7            // Row 7 - North
-} DirectionEnum;
+} Direction;
 
 typedef struct { float x, y; } Position;
 typedef struct { float x, y; } Velocity;
-typedef struct {
-    DirectionEnum direction;
-} Direction;
 
 extern ECS_COMPONENT_DECLARE(Velocity);
 extern ECS_COMPONENT_DECLARE(Direction);

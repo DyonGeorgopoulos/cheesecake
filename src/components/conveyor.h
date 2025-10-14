@@ -6,7 +6,7 @@
 #include "transform.h"
 
 #define CONVEYOR_LANES 2
-#define CONVEYOR_SPEED 10.0f
+#define CONVEYOR_SPEED 0.5f
 #define ITEM_SPACING 0.5f // Minimum distance between items
 
 typedef enum { 

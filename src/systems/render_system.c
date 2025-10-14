@@ -179,7 +179,7 @@ void update_animations(AppState *state, float dt) {
                     anim_state[i].current_frame = clip->loop ? 0 : clip->frame_count - 1;
                 }
                 
-                int row = clip->direction_count > 1 ? dir[i].direction : 
+                int row = clip->direction_count > 1 ? dir[i] : 
                          (clip->row >= 0 ? clip->row : 0);
                 
                 sprite[i].src_x = anim_state[i].current_frame * anim_set[i].width;
@@ -208,7 +208,8 @@ void set_sprite_animation(ecs_world_t *world, ecs_entity_t entity, const char *a
             // Determine row based on animation type
             int row = 0;
             if (clip->direction_count > 1) {
-                row = dir ? dir->direction : 2;
+                // If Direction is just the enum, dereference the pointer directly
+                row = dir ? *dir : 2;  // Just *dir, not dir->direction
             } else if (clip->row >= 0) {
                 row = clip->row;
             }

@@ -58,7 +58,7 @@ void UpdateDirectionSystem(ecs_iter_t *it) {
     Direction *dir = ecs_field(it, Direction, 1);
     
     // Maps angle index to your sprite sheet row
-    static const DirectionEnum angle_to_row[8] = {
+    static const Direction angle_to_row[8] = {
         DIR_RIGHT,       // 0°   (East)
         DIR_DOWN_RIGHT,  // 45°  (Southeast)
         DIR_DOWN,        // 90°  (South)
@@ -80,6 +80,6 @@ void UpdateDirectionSystem(ecs_iter_t *it) {
         }
         
         int angle_index = (int)roundf(angle / (M_PI / 4.0f)) % 8;
-        dir[i].direction = angle_to_row[angle_index];
+        dir[i] = angle_to_row[angle_index];
     }
 }

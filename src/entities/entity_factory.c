@@ -62,7 +62,7 @@ ecs_entity_t entity_factory_spawn_sprite(AppState* state, const char* sprite_nam
     });
 
     ecs_set(state->ecs, e, Position, {x, y});
-    ecs_set(state->ecs, e, Direction, {.direction = 2});
+    ecs_set(state->ecs, e, Direction, { DIR_RIGHT});
     ecs_set(state->ecs, e, Velocity, {0, 0});
     printf("Velocity OK\n");
     
@@ -91,16 +91,31 @@ ecs_entity_t entity_factory_spawn_sprite(AppState* state, const char* sprite_nam
     return e;
 }
 
-ecs_entity_t entity_factory_spawn_belt(AppState* state, float x, float y) {
+ecs_entity_t entity_factory_spawn_belt(AppState* state, float x, float y, Direction dir) {
     ecs_entity_t belt = entity_factory_spawn_sprite(state, "belt", x, y);
-    Conveyor conveyor = {0};
     ecs_set(state->ecs, belt, Conveyor, {
-        .dir = (Direction) { 
-            .direction = DIR_RIGHT
-        },
+        .dir = dir,
         .lane_items = {0},
         .lane_item_count = {0}
     });
+    // switch this to updating a string
+    switch (dir) {
+        case DIR_RIGHT:
+            set_sprite_animation(state->ecs, belt, "right");
+            break;
+        case DIR_UP:
+            set_sprite_animation(state->ecs, belt, "up");
+            break;
+        case DIR_DOWN:
+            set_sprite_animation(state->ecs, belt, "down");
+            break;
+        case DIR_LEFT:
+            set_sprite_animation(state->ecs, belt, "left");
+            break;
+        default:
+            break;
+    }
+    
     insert_entity_to_grid(state, x, y, belt);
     return belt;
 }
@@ -120,7 +135,7 @@ void entity_factory_spawn_conveyor_item(AppState* state, ecs_entity_t conveyor, 
     float tile_size = 32.0f;
     float lane_offset = (lane == LANE_LEFT) ? -8.0f : 8.0f;
     
-    switch (conv->dir.direction) {
+    switch (conv->dir) {
         case DIR_UP:    // North - start at bottom
             start_x = conv_pos->x + lane_offset;
             start_y = conv_pos->y + tile_size/2;

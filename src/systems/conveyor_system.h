@@ -8,6 +8,7 @@ void conveyor_system_init(ecs_world_t* world);
 void on_conveyor_placed(ecs_iter_t* it);
 void on_conveyor_removed(ecs_iter_t* it);
 void update_conveyor_items(ecs_iter_t* it);
+void update_conveyor_item_sprite(ecs_iter_t* it);
 void process_conveyor_transfers(ecs_iter_t* it);
 
 // Helper functions

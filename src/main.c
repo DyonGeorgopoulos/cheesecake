@@ -63,6 +63,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     // Initialise ecs_world
     state->ecs = ecs_init();
 
+    ecs_set_ctx(state->ecs, state, NULL);
+
     // register components
     transform_components_register(state->ecs);
     animation_components_register(state->ecs);
@@ -99,12 +101,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     sprite_atlas_load(&state->sprite_atlas, "assets/sprites/sprite_definitions.json");
     // spawn a player entity
     player = entity_factory_spawn_sprite(state, "player", 200, 200);
-    ecs_entity_t belt = entity_factory_spawn_belt(state, 332, 333);
+    ecs_entity_t belt = entity_factory_spawn_belt(state, 300, 300, DIR_RIGHT);
     entity_factory_spawn_conveyor_item(state, belt, LANE_LEFT);
     entity_factory_spawn_conveyor_item(state, belt, LANE_RIGHT);
 
-    ecs_entity_t belt2 = entity_factory_spawn_belt(state, 400, 400);
-    entity_factory_spawn_conveyor_item(state, belt2, LANE_LEFT);
+    ecs_entity_t belt2 = entity_factory_spawn_belt(state, 332, 300, DIR_RIGHT);
+    ecs_entity_t belt3 = entity_factory_spawn_belt(state, 364, 300, DIR_DOWN);
+    entity_factory_spawn_belt(state, 364, 332, DIR_LEFT);
+    entity_factory_spawn_belt(state, 332, 332, DIR_LEFT);
+    entity_factory_spawn_belt(state, 300, 332, DIR_UP);
+
+    
     // load the map
     load_map(state, "");
     // Initialise the text renderer
