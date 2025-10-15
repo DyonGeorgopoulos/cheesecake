@@ -8,6 +8,7 @@
 #define CONVEYOR_LANES 2
 #define CONVEYOR_SPEED 0.5f
 #define ITEM_SPACING 0.5f // Minimum distance between items
+#define MAX_CONVEYER_ITEMS 4
 
 typedef enum { 
     LANE_LEFT = 0,
@@ -16,8 +17,9 @@ typedef enum {
 
 typedef struct {
     Direction dir;
-    ecs_entity_t lane_items[CONVEYOR_LANES][16];
+    ecs_entity_t lane_items[CONVEYOR_LANES][MAX_CONVEYER_ITEMS];
     int lane_item_count[CONVEYOR_LANES];
+    bool isCorner;
 } Conveyor;
 
 typedef struct {

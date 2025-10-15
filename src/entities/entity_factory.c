@@ -93,11 +93,23 @@ ecs_entity_t entity_factory_spawn_sprite(AppState* state, const char* sprite_nam
 
 ecs_entity_t entity_factory_spawn_belt(AppState* state, float x, float y, Direction dir) {
     ecs_entity_t belt = entity_factory_spawn_sprite(state, "belt", x, y);
+    // need to do an adjacent tiles check and see 
     ecs_set(state->ecs, belt, Conveyor, {
         .dir = dir,
         .lane_items = {0},
         .lane_item_count = {0}
     });
+
+    // to determine if we need a corner belt, we need to look at the surrounding tiles. 
+    // for example:
+    // [b][x][x]  
+    // [x][x][x]
+    // [x][x][x]
+    // if i place a belt into [0][1], i need to check up, down, right, (ignore origin)
+    // if theres a belt there, then we can go one step further and check
+    // if the belt direction is facing towards the to be placed belt then we just place the DIR.
+    // otherwise we can use the angled dir, 
+    // so if the from direction is 
     // switch this to updating a string
     switch (dir) {
         case DIR_RIGHT:
@@ -111,6 +123,18 @@ ecs_entity_t entity_factory_spawn_belt(AppState* state, float x, float y, Direct
             break;
         case DIR_LEFT:
             set_sprite_animation(state->ecs, belt, "left");
+            break;
+        case DIR_DOWN_RIGHT:
+            set_sprite_animation(state->ecs, belt, "down_right");
+            break;
+        case DIR_DOWN_LEFT:
+            set_sprite_animation(state->ecs, belt, "down_left");
+            break;
+        case DIR_UP_RIGHT:
+            set_sprite_animation(state->ecs, belt, "up_right");
+            break;
+        case DIR_UP_LEFT:
+            set_sprite_animation(state->ecs, belt, "up_left");
             break;
         default:
             break;
@@ -132,7 +156,7 @@ void entity_factory_spawn_conveyor_item(AppState* state, ecs_entity_t conveyor, 
     // Calculate starting position based on conveyor direction and lane
     float start_x = conv_pos->x;
     float start_y = conv_pos->y;
-    float tile_size = 32.0f;
+    float tile_size = TILE_SIZE;
     float lane_offset = (lane == LANE_LEFT) ? -8.0f : 8.0f;
     
     switch (conv->dir) {

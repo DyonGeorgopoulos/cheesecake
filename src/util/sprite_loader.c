@@ -91,8 +91,8 @@ bool sprite_atlas_load(SpriteAtlas* atlas, const char* path) {
         }
         
         strncpy(entity->name, name->valuestring, sizeof(entity->name) - 1);
-        entity->width = cJSON_IsNumber(width) ? width->valueint : 32;
-        entity->height = cJSON_IsNumber(height) ? height->valueint : 32;
+        entity->width = cJSON_IsNumber(width) ? width->valueint : 128;
+        entity->height = cJSON_IsNumber(height) ? height->valueint : 128;
         entity->scale_x = cJSON_IsNumber(scale_x) ? scale_x->valuedouble : 1.0f;
         entity->scale_y = cJSON_IsNumber(scale_y) ? scale_y->valuedouble : 1.0f;
         

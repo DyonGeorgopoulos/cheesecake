@@ -6,7 +6,7 @@
 #include "font_rendering.h"
 #include "util/sprite_loader.h"
 
-#define TILE_SIZE 32
+#define TILE_SIZE 128
 typedef struct {
     bool left, right, up, down;
 } InputState;

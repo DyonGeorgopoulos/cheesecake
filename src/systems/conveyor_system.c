@@ -33,7 +33,7 @@ void on_conveyor_placed(ecs_iter_t *it)
         for (int lane = 0; lane < CONVEYOR_LANES; lane++)
         {
             c->lane_item_count[lane] = 0;
-            for (int j = 0; j < 16; j++)
+            for (int j = 0; j < MAX_CONVEYER_ITEMS; j++)
             {
                 c->lane_items[lane][j] = 0;
             }
@@ -201,11 +201,11 @@ void update_conveyor_item_sprite(ecs_iter_t *it)
         switch (conveyor->dir)
         {
         case DIR_UP: // North
-            pos->x = conv_pos->x + lane_offset;
+            pos->x = conv_pos->x + (lane_offset * 2);
             pos->y = conv_pos->y - (item->progress * tile_size - tile_size / 2);
             break;
         case DIR_DOWN: // South
-            pos->x = conv_pos->x - lane_offset;
+            pos->x = conv_pos->x + lane_offset;
             pos->y = conv_pos->y + (item->progress * tile_size - tile_size / 2);
             break;
         case DIR_RIGHT: // East
@@ -273,7 +273,7 @@ void process_conveyor_transfers(ecs_iter_t *it)
 
         // Add to new conveyor's lane tracking (at the beginning, index 0)
         int new_lane = transfer->target_lane;
-        if (new_conv->lane_item_count[new_lane] < 16)
+        if (new_conv->lane_item_count[new_lane] < MAX_CONVEYER_ITEMS)
         {
             // Shift existing items forward to make room at index 0
             for (int j = new_conv->lane_item_count[new_lane]; j > 0; j--)
@@ -290,13 +290,13 @@ void process_conveyor_transfers(ecs_iter_t *it)
             continue;
         }
 
+        printf("Transferred item %llu from conveyor %llu to %llu (lane %d)\n",
+            e, item->conveyor, transfer->next_conveyor, new_lane);
+
         // Update item data
         item->conveyor = transfer->next_conveyor;
         item->lane = transfer->target_lane;
         item->progress = 0.0f;
-
-        printf("Transferred item %llu from conveyor %llu to %llu (lane %d)\n",
-               e, old_conv, transfer->next_conveyor, new_lane);
 
         // Remove transfer component
         ecs_remove(it->world, e, ConveyorTransfer);

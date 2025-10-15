@@ -44,8 +44,8 @@
         },
         {
             "name" : "belt",
-            "width": 32,
-            "height": 32,
+            "width": 128,
+            "height": 128,
             "origin_x": 0,
             "origin_y": 0,
             "scale_x": 1.0,
@@ -53,29 +53,57 @@
             "default_animation": "right",
             "animations": {
                 "right": {
-                    "texture": "assets/sprites/belt_right.png",
-                    "frame_count": 8,
+                    "texture": "assets/sprites/transport_belt/belt_right.png",
+                    "frame_count": 16,
                     "direction_count": 1,
                     "frame_time": 0.1,
                     "loop": true
                 },
                 "down": {
-                    "texture": "assets/sprites/belt_down.png",
-                    "frame_count": 8,
+                    "texture": "assets/sprites/transport_belt/belt_down.png",
+                    "frame_count": 16,
                     "direction_count": 1,
                     "frame_time": 0.1,
                     "loop": true
                 },
                 "left": {
-                    "texture": "assets/sprites/belt_left.png",
-                    "frame_count": 8,
+                    "texture": "assets/sprites/transport_belt/belt_left.png",
+                    "frame_count": 16,
                     "direction_count": 1,
                     "frame_time": 0.1,
                     "loop": true
                 },
                 "up": {
-                    "texture": "assets/sprites/belt_up.png",
-                    "frame_count": 8,
+                    "texture": "assets/sprites/transport_belt/belt_up.png",
+                    "frame_count": 16,
+                    "direction_count": 1,
+                    "frame_time": 0.1,
+                    "loop": true
+                },
+                "down_right": {
+                    "texture": "assets/sprites/transport_belt/right_down.png",
+                    "frame_count": 16,
+                    "direction_count": 1,
+                    "frame_time": 0.1,
+                    "loop": true
+                },
+                "down_left": {
+                    "texture": "assets/sprites/transport_belt/down_left.png",
+                    "frame_count": 16,
+                    "direction_count": 1,
+                    "frame_time": 0.1,
+                    "loop": true
+                },
+                "up_right": {
+                    "texture": "assets/sprites/transport_belt/up_right.png",
+                    "frame_count": 16,
+                    "direction_count": 1,
+                    "frame_time": 0.1,
+                    "loop": true
+                },
+                "up_left": {
+                    "texture": "assets/sprites/transport_belt/up_left.png",
+                    "frame_count": 16,
                     "direction_count": 1,
                     "frame_time": 0.1,
                     "loop": true
