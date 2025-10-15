@@ -108,16 +108,16 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     entity_factory_spawn_conveyor_item(state, belt, LANE_RIGHT);
 
 
-    ecs_entity_t belt2 = entity_factory_spawn_belt(state, 364, 300, DIR_RIGHT);
-    ecs_entity_t belt3 = entity_factory_spawn_belt(state, 428, 300, DIR_DOWN_RIGHT);
-    ecs_entity_t belt4 = entity_factory_spawn_belt(state, 428, 364, DIR_DOWN);
-    ecs_entity_t belt9 = entity_factory_spawn_belt(state, 236, 364, DIR_UP);
-    ecs_entity_t belt5 = entity_factory_spawn_belt(state, 428, 428, DIR_DOWN_LEFT);
-    ecs_entity_t belt6 = entity_factory_spawn_belt(state, 364, 428, DIR_LEFT);
-    ecs_entity_t belt7 = entity_factory_spawn_belt(state, 300, 428, DIR_LEFT);
-    ecs_entity_t belt8 = entity_factory_spawn_belt(state, 236, 428, DIR_UP_LEFT);
+    ecs_entity_t belt2 = entity_factory_spawn_belt(state, 332, 300, DIR_RIGHT);
+    ecs_entity_t belt3 = entity_factory_spawn_belt(state, 364, 300, DIR_DOWN_RIGHT);
+    ecs_entity_t belt4 = entity_factory_spawn_belt(state, 364, 332, DIR_DOWN);
+    ecs_entity_t belt9 = entity_factory_spawn_belt(state, 268, 332, DIR_UP);
+    ecs_entity_t belt5 = entity_factory_spawn_belt(state, 364, 364, DIR_DOWN_LEFT);
+    ecs_entity_t belt6 = entity_factory_spawn_belt(state, 332, 364, DIR_LEFT);
+    ecs_entity_t belt7 = entity_factory_spawn_belt(state, 300, 364, DIR_LEFT);
+    ecs_entity_t belt8 = entity_factory_spawn_belt(state, 268, 364, DIR_UP_LEFT);
 
-    ecs_entity_t belt10 = entity_factory_spawn_belt(state, 236, 300, DIR_UP_RIGHT);
+    ecs_entity_t belt10 = entity_factory_spawn_belt(state, 268, 300, DIR_UP_RIGHT);
 
     
     // load the map

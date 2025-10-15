@@ -48,8 +48,8 @@
             "height": 128,
             "origin_x": 0,
             "origin_y": 0,
-            "scale_x": 1.0,
-            "scale_y": 1.0,
+            "scale_x": 0.5,
+            "scale_y": 0.5,
             "default_animation": "right",
             "animations": {
                 "right": {
