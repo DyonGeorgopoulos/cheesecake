@@ -10,7 +10,6 @@ int world_to_tile(float pos) {
 static inline uint64_t grid_key(Position pos) {
     int x = world_to_tile(pos.x);
     int y = world_to_tile(pos.y);
-    printf("grid coords - x: %d, y: %d\n", x, y);
     return ((uint64_t) (uint32_t)x << 32) | (uint32_t)y;
 }
 

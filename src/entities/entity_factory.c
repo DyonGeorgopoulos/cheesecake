@@ -24,11 +24,9 @@ ecs_entity_t entity_factory_spawn_sprite(AppState* state, const char* sprite_nam
         anim_set.clips[i].row = loaded->clips[i].row;
         strncpy(anim_set.clip_names[i], loaded->clip_names[i], 63);
     }
-    
-    printf("About to set AnimationSet, ID=%llu, valid=%d\n", 
-           ecs_id(AnimationSet), ecs_id_is_valid(state->ecs, ecs_id(AnimationSet)));
+
     ecs_set_ptr(state->ecs, e, AnimationSet, &anim_set);
-    printf("AnimationSet OK\n");
+
     
     int default_idx = 0;
     for (int i = 0; i < anim_set.clip_count; i++) {
@@ -40,15 +38,12 @@ ecs_entity_t entity_factory_spawn_sprite(AppState* state, const char* sprite_nam
     
     AnimationClip *clip = &anim_set.clips[default_idx];
     int initial_row = clip->direction_count > 1 ? 2 : (clip->row >= 0 ? clip->row : 0);
-    
-    printf("About to set AnimationState, ID=%llu, valid=%d\n", 
-           ecs_id(AnimationState), ecs_id_is_valid(state->ecs, ecs_id(AnimationState)));
+
     ecs_set(state->ecs, e, AnimationState, {
         .current_clip = default_idx,
         .current_frame = 0,
         .elapsed = 0
     });
-    printf("AnimationState OK\n");
     
     ecs_set(state->ecs, e, Sprite, {
         .texture = clip->texture,
@@ -64,11 +59,9 @@ ecs_entity_t entity_factory_spawn_sprite(AppState* state, const char* sprite_nam
     ecs_set(state->ecs, e, Position, {x, y});
     ecs_set(state->ecs, e, Direction, { DIR_RIGHT});
     ecs_set(state->ecs, e, Velocity, {0, 0});
-    printf("Velocity OK\n");
     
     // Copy animation graph if exists
     if (loaded->transitions && loaded->transition_count > 0) {
-        printf("About to create AnimationGraph\n");
         AnimationGraph *graph = malloc(sizeof(AnimationGraph));
         graph->transition_count = loaded->transition_count;
         graph->transitions = malloc(loaded->transition_count * sizeof(AnimationTransition));
@@ -81,10 +74,7 @@ ecs_entity_t entity_factory_spawn_sprite(AppState* state, const char* sprite_nam
             t->priority = loaded->transitions[i].priority;
         }
         
-        printf("About to set AnimationGraphComponent, ID=%llu, valid=%d\n", 
-               ecs_id(AnimationGraphComponent), ecs_id_is_valid(state->ecs, ecs_id(AnimationGraphComponent)));
         ecs_set_ptr(state->ecs, e, AnimationGraphComponent, &(AnimationGraphComponent){graph});
-        printf("AnimationGraphComponent OK\n");
     }
     
     printf("Entity spawn complete\n");
@@ -111,6 +101,35 @@ ecs_entity_t entity_factory_spawn_belt(AppState* state, float x, float y, Direct
     // otherwise we can use the angled dir, 
     // so if the from direction is 
     // switch this to updating a string
+
+    // this is a DIR_RIGHT check
+    ecs_entity_t ent = get_entity_at_grid_position(state,  x + 32, y);
+    if ( ent != 0) { 
+        // check if it is a conveyor & direction is the same
+        Conveyor* conv = ecs_get_mut(state->ecs, ent, Conveyor);
+        if (conv == NULL) {
+            // do nothing
+        }
+        else if (dir == conv->dir) {
+            // leave early
+            printf("same dir leaving early\n");
+        }
+        else if (dir == DIR_RIGHT && conv->dir == DIR_LEFT) {
+            printf("found a dir left, while im facing dir_right, so place as normal\n");
+        }
+        else if (dir == DIR_RIGHT && conv->dir == DIR_DOWN) {
+            // now we can set the dir of the next belt to right_down
+            conv->dir = DIR_DOWN_RIGHT;
+            set_sprite_animation(state->ecs, ent, "down_right");
+        }
+        else if (dir == DIR_RIGHT && conv->dir == DIR_UP) {
+            // now we can set the dir of the next belt to right_down
+            // need to get the animation for this one, its WEST->NORTH
+            conv->dir = DIR_UP_LEFT;
+            set_sprite_animation(state->ecs, ent, "up_left");
+        }
+    }
+
     switch (dir) {
         case DIR_RIGHT:
             set_sprite_animation(state->ecs, belt, "right");

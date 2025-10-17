@@ -14,9 +14,13 @@
 #include "systems/animation_system.h"
 #include "systems/render_system.h"
 #include "systems/conveyor_system.h"
+#include "systems/input_system.h"
+
 
 #include "components/animation_graph.h"
 #include "components/conveyor.h"
+#include "components/input.h"
+
 // flecs
 #include <flecs.h>
 
@@ -71,11 +75,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     animation_graph_components_register(state->ecs);
     conveyor_components_register(state->ecs);
     sprite_components_register(state->ecs);
+    input_components_register(state->ecs);
 
         // register systems
     ECS_SYSTEM(state->ecs, UpdateDirectionSystem, EcsOnUpdate, Velocity, Direction);
     ECS_SYSTEM(state->ecs, AnimationGraphSystem, EcsOnUpdate, AnimationSet, AnimationState, AnimationGraphComponent);
     conveyor_system_init(state->ecs);
+    input_system_init(state);
 
     printf("Starting %s...\n", WINDOW_TITLE);
 
@@ -101,25 +107,29 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     sprite_atlas_load(&state->sprite_atlas, "assets/sprites/sprite_definitions.json");
     // spawn a player entity
     player = entity_factory_spawn_sprite(state, "player", 200, 200);
-    ecs_entity_t belt = entity_factory_spawn_belt(state, 300, 300, DIR_RIGHT);
-    entity_factory_spawn_conveyor_item(state, belt, LANE_LEFT);
-    entity_factory_spawn_conveyor_item(state, belt, LANE_RIGHT);
-    entity_factory_spawn_conveyor_item(state, belt, LANE_RIGHT);
-    entity_factory_spawn_conveyor_item(state, belt, LANE_RIGHT);
+    // ecs_entity_t belt = entity_factory_spawn_belt(state, 300, 300, DIR_RIGHT);
+    // entity_factory_spawn_conveyor_item(state, belt, LANE_LEFT);
+    // entity_factory_spawn_conveyor_item(state, belt, LANE_RIGHT);
+    // entity_factory_spawn_conveyor_item(state, belt, LANE_RIGHT);
+    // entity_factory_spawn_conveyor_item(state, belt, LANE_RIGHT);
 
 
-    ecs_entity_t belt2 = entity_factory_spawn_belt(state, 332, 300, DIR_RIGHT);
-    ecs_entity_t belt3 = entity_factory_spawn_belt(state, 364, 300, DIR_DOWN_RIGHT);
+    // ecs_entity_t belt2 = entity_factory_spawn_belt(state, 332, 300, DIR_RIGHT);
+    // ecs_entity_t belt3 = entity_factory_spawn_belt(state, 364, 300, DIR_DOWN_RIGHT);
+    // ecs_entity_t belt4 = entity_factory_spawn_belt(state, 364, 332, DIR_DOWN);
+    // ecs_entity_t belt9 = entity_factory_spawn_belt(state, 268, 332, DIR_UP);
+    // ecs_entity_t belt5 = entity_factory_spawn_belt(state, 364, 364, DIR_DOWN_LEFT);
+    // ecs_entity_t belt6 = entity_factory_spawn_belt(state, 332, 364, DIR_LEFT);
+    // ecs_entity_t belt7 = entity_factory_spawn_belt(state, 300, 364, DIR_LEFT);
+    // ecs_entity_t belt8 = entity_factory_spawn_belt(state, 268, 364, DIR_UP_LEFT);
+
+    // ecs_entity_t belt10 = entity_factory_spawn_belt(state, 268, 300, DIR_UP_RIGHT);
+
+    //testing down_right logic
     ecs_entity_t belt4 = entity_factory_spawn_belt(state, 364, 332, DIR_DOWN);
-    ecs_entity_t belt9 = entity_factory_spawn_belt(state, 268, 332, DIR_UP);
-    ecs_entity_t belt5 = entity_factory_spawn_belt(state, 364, 364, DIR_DOWN_LEFT);
-    ecs_entity_t belt6 = entity_factory_spawn_belt(state, 332, 364, DIR_LEFT);
-    ecs_entity_t belt7 = entity_factory_spawn_belt(state, 300, 364, DIR_LEFT);
-    ecs_entity_t belt8 = entity_factory_spawn_belt(state, 268, 364, DIR_UP_LEFT);
+    ecs_entity_t belt5 = entity_factory_spawn_belt(state, 332, 332, DIR_RIGHT);
+    ecs_entity_t belt6 = entity_factory_spawn_belt(state, 364, 364, DIR_DOWN);
 
-    ecs_entity_t belt10 = entity_factory_spawn_belt(state, 268, 300, DIR_UP_RIGHT);
-
-    
     // load the map
     load_map(state, "");
     // Initialise the text renderer
@@ -183,34 +193,15 @@ void do_resize(void* appstate) {
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     AppState* state = (AppState*) appstate;
 
-    switch (event->type) {
-        case SDL_EVENT_QUIT:
-            return SDL_APP_SUCCESS;
-            break;
+    switch(event->type) {
         case SDL_EVENT_WINDOW_RESIZED:
             do_resize(appstate); 
             break;
-        case SDL_EVENT_KEY_DOWN:
-            if (event->key.key == SDLK_ESCAPE) return SDL_APP_SUCCESS;
-            if (event->key.key == SDLK_LEFT) state->input.left = true;
-            if (event->key.key == SDLK_RIGHT) state->input.right = true;
-            if (event->key.key == SDLK_UP) state->input.up = true;
-            if (event->key.key == SDLK_DOWN) state->input.down = true;
-        break;
-
-    case SDL_EVENT_KEY_UP:
-        if (event->key.key == SDLK_LEFT) state->input.left = false;
-        if (event->key.key == SDLK_RIGHT) state->input.right = false;
-        if (event->key.key == SDLK_UP) state->input.up = false;
-        if (event->key.key == SDLK_DOWN) state->input.down = false;
-        break;
         default:
             break;
     }
-        
-        // Pass events to ImGui if needed
-        // simgui_handle_event(&event);
-    return SDL_APP_CONTINUE;
+
+    return handle_input_event(state, event);
 }
 
 // This function runs once at shutdown

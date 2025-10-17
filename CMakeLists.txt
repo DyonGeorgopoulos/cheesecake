@@ -196,10 +196,12 @@ set(SOURCES
     src/components/transform.c
     src/components/sprite.c
     src/components/conveyor.c
+    src/components/input.c
     src/entities/entity_factory.c
     src/systems/animation_system.c
     src/systems/render_system.c
     src/systems/conveyor_system.c
+    src/systems/input_system.c
     src/util/sprite_loader.c
     src/util/stb_impl.c
     src/util/cute_tiled_impl.c
